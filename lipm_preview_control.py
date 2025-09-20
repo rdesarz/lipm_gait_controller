@@ -193,7 +193,7 @@ if __name__ == "__main__":
 
     fig, axes = plt.subplots(2, 2, figsize=(20, 8))
 
-    # left: trajectories
+    # Plot ZMP and CoM trajectories
     axes[0, 0].plot(zmp_ref[:, 0], zmp_ref[:, 1], marker='.', label='ZMP ref')
     axes[0, 0].plot(x[:, 1], y[:, 1], label='CoM', color='red')
     plot_steps(axes[0, 0], steps_pose, foot_shape)
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     axes[0, 0].set_ylabel("y pos [m]")
     axes[0, 0].set_title("ZMP / CoM trajectories")
 
-    # right: gains
+    # Plot ZMP reference vs COM on the x axis
     axes[0, 1].plot(t, zmp_ref[:, 0], marker='.', label='ZMP reference [x]')
     axes[0, 1].plot(t, x[:-1, 1], marker='.', label='COM [x]')
     axes[0, 1].grid(True)
@@ -213,6 +213,7 @@ if __name__ == "__main__":
     axes[0, 1].set_ylabel("x pos [m]")
     axes[0, 1].set_title("ZMP reference vs COM position on X-axis")
 
+    # Plot ZMP reference vs COM on the y axis
     axes[1, 1].plot(t, zmp_ref[:, 1], marker='.', label='ZMP reference [y]')
     axes[1, 1].plot(t, y[:-1, 1], marker='.', label='COM [y]')
     axes[1, 1].grid(True)
@@ -221,6 +222,7 @@ if __name__ == "__main__":
     axes[1, 1].set_ylabel("y pos [m]")
     axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
 
+    # Plot preview controller gains
     axes[1, 0].plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
     axes[1, 0].grid(True)
     axes[1, 0].legend()
@@ -229,6 +231,4 @@ if __name__ == "__main__":
     axes[1, 0].set_title("Preview Gains")
 
     plt.tight_layout()
-    plt.show()
-
     plt.show()
