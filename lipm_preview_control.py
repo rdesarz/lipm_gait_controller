@@ -7,25 +7,6 @@ from shapely.ops import nearest_points
 from scipy.linalg import solve_discrete_are
 
 
-def compute_lipm_dynamic_model(zc, g, dt):
-    A = np.array([[1.0, dt, dt ** 2 / 2],
-                  [0.0, 1.0, dt],
-                  [0.0, 0.0, 1.0]], dtype=float)
-    B = np.array([[dt ** 3 / 6.0], [dt ** 2 / 2.0], [dt]], dtype=float)  # shape (2,)
-    C = np.array([1.0, 0.0, -zc / g], dtype=float)
-
-    return A, B, C
-
-
-def compute_augmented_model(A, B, C):
-    A_aug = np.block([[np.array([1.0]), -C.T],
-                      [np.zeros((3, 1)), A]])
-    B_aug = np.vstack([[0.0], B])
-    C_aug = np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
-
-    return A_aug, B_aug, C_aug
-
-
 def compute_zmp_ref(com_initial_pose, steps, dt, ss_t, ds_t):
     T = int((len(steps) - 1) * (ss_t + ds_t) / dt + ds_t / dt)
 
@@ -107,14 +88,18 @@ def clamp_to_polygon(u_xy, poly: Polygon):
 
 if __name__ == "__main__":
     # Parameters
-    dt = 0.005  # delta
+    dt = 0.005  # Delta of time of the model simulation
     g = 9.81  # Gravity
     zc = 0.814  # Height of the COM
-    t_preview = 1.6
-    NL = int(round(t_preview / dt))
     w = math.sqrt(g / zc)
-    t_ss = 1.0  # single support phase time window
-    t_ds = 0.05  # double support phase time window
+
+    # Preview controller parameters
+    t_preview = 1.6 # Time horizon used for the preview controller
+    n_preview_steps = int(round(t_preview / dt))
+
+    # ZMP reference parameters
+    t_ss = 1.0  # Single support phase time window
+    t_ds = 0.05  # Double support phase time window
     com_initial_pose = np.array([0.0, 0.0])
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
     steps_pose = np.array([[0.0, -0.1],
@@ -122,15 +107,17 @@ if __name__ == "__main__":
                            [0.6, -0.1],
                            [0.9, 0.1]])
 
+    # Applied force parameters
     m = 60.0  # kg
     Fx, Fy = 0.0, 0.0  # N
     tau = 0.3  # s duration
     n_push = int(tau / dt)
     k_push = int((t_ss + 0.5 * t_ds) / dt)  # mid-DS of first pair
 
+    # Build ZMP reference to track
     t, zmp_ref = compute_zmp_ref(com_initial_pose, steps_pose, dt, t_ss, t_ds)
-    T = len(t)
 
+    T = len(t)
     Qe = 1.0
     Qx = np.zeros((3, 3))
     R = 1e-6
@@ -165,9 +152,9 @@ if __name__ == "__main__":
     Ac = A1 - B1 @ np.linalg.inv(R + B1.T @ K @ B1) @ B1.T @ K @ A1
     X1 = Ac.T @ K @ I1
     X = X1
-    Gd = np.zeros((NL - 1))
+    Gd = np.zeros((n_preview_steps - 1))
     Gd[0] = -Gi
-    for l in range(NL - 2):
+    for l in range(n_preview_steps - 2):
         Gd[l + 1] = np.linalg.inv(R + B1.T @ K @ B1) @ B1.T @ X
         X = Ac.T @ X
 
@@ -175,7 +162,7 @@ if __name__ == "__main__":
 
     zmp_padded = np.vstack([
         zmp_ref,
-        np.repeat(zmp_ref[-1][None, :], NL, axis=0)  # pad NL rows
+        np.repeat(zmp_ref[-1][None, :], n_preview_steps, axis=0)  # pad NL rows
     ])
 
     x0 = np.array([0.0, 0.0, 0.0, 0.0], dtype=float)  # [x, xdot]
@@ -193,7 +180,7 @@ if __name__ == "__main__":
             y[k, 1] += (Fy / m) * dt
 
         # Get zmp ref horizon
-        zmp_ref_horizon = zmp_padded[k + 1:k + NL]
+        zmp_ref_horizon = zmp_padded[k + 1:k + n_preview_steps]
 
         # Compute uk
         u[k, 0] = -Gi * x[k, 0] - Gx @ x[k, 1:] + Gd.T @ zmp_ref_horizon[:, 0]
@@ -230,7 +217,7 @@ if __name__ == "__main__":
     axes[1, 1].legend()
     axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
 
-    axes[1, 0].plot(np.arange(1, NL), Gd)
+    axes[1, 0].plot(np.arange(1, n_preview_steps), Gd)
     axes[1, 0].grid(True)
     axes[1, 0].legend()
     axes[1, 0].set_title("LQR Feedback and Preview Gains")
