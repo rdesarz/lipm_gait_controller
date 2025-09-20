@@ -120,9 +120,6 @@ if __name__ == "__main__":
     # Build ZMP reference to track
     t, zmp_ref = compute_zmp_ref(com_initial_pose, steps_pose, dt, t_ss, t_ds)
 
-    T = len(t)
-
-
     # Discrete cart-table model with jerk input
     A = np.array([[1.0, dt, 0.5 * dt * dt],
                   [0.0, 1.0, dt],
@@ -132,7 +129,6 @@ if __name__ == "__main__":
                   [dt]], dtype=float)
     C = np.array([[1.0, 0.0, -zc / g]], dtype=float)  # 1x3
 
-    # Augment with integral of ZMP error
     A1 = np.block([[np.eye(1), C @ A],
                    [np.zeros((3, 1)), A]])  # 4x4
     B1 = np.vstack((C @ B, B))  # 4x1
@@ -142,7 +138,7 @@ if __name__ == "__main__":
     Q = np.block([[Qe, np.zeros((1, 3))],
                   [np.zeros((3, 1)), Qx]])  # 4x4
 
-    # Compute K from Ricatti
+    # Compute K by solving Ricatti equation
     K = solve_discrete_are(A1, B1, Q, R)
 
     # Compute Gi and Gx
@@ -159,6 +155,7 @@ if __name__ == "__main__":
         Gd[l + 1] = np.linalg.inv(R + B1.T @ K @ B1) @ B1.T @ X
         X = Ac.T @ X
 
+    T = len(t)
     u = np.zeros((T, 2))
 
     zmp_padded = np.vstack([
@@ -173,9 +170,9 @@ if __name__ == "__main__":
     x[0] = x0
     y[0] = y0
 
-    # Compute the trajectory of the COM
+    # Simulate the trajectory of the COM
     for k in range(T):
-        # Apply perturbation if needed
+        # Apply the requested perturbation
         if k_push <= k < k_push + n_push:
             x[k, 1] += (Fx / m) * dt
             y[k, 1] += (Fy / m) * dt
@@ -203,6 +200,8 @@ if __name__ == "__main__":
     axes[0, 0].axis('equal')
     axes[0, 0].grid(True)
     axes[0, 0].legend()
+    axes[0, 0].set_xlabel("x pos [m]")
+    axes[0, 0].set_ylabel("y pos [m]")
     axes[0, 0].set_title("ZMP / CoM trajectories")
 
     # right: gains
@@ -210,18 +209,24 @@ if __name__ == "__main__":
     axes[0, 1].plot(t, x[:-1, 1], marker='.', label='COM [x]')
     axes[0, 1].grid(True)
     axes[0, 1].legend()
+    axes[0, 1].set_xlabel("t [s]")
+    axes[0, 1].set_ylabel("x pos [m]")
     axes[0, 1].set_title("ZMP reference vs COM position on X-axis")
 
     axes[1, 1].plot(t, zmp_ref[:, 1], marker='.', label='ZMP reference [y]')
     axes[1, 1].plot(t, y[:-1, 1], marker='.', label='COM [y]')
     axes[1, 1].grid(True)
     axes[1, 1].legend()
+    axes[1, 1].set_xlabel("time [s]")
+    axes[1, 1].set_ylabel("y pos [m]")
     axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
 
-    axes[1, 0].plot(np.arange(1, n_preview_steps), Gd)
+    axes[1, 0].plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
     axes[1, 0].grid(True)
     axes[1, 0].legend()
-    axes[1, 0].set_title("LQR Feedback and Preview Gains")
+    axes[1, 0].set_xlabel("time [s]")
+    axes[1, 0].set_ylabel("preview gain [-]")
+    axes[1, 0].set_title("Preview Gains")
 
     plt.tight_layout()
     plt.show()
