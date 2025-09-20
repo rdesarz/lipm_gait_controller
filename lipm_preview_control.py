@@ -96,6 +96,9 @@ if __name__ == "__main__":
     # Preview controller parameters
     t_preview = 1.6 # Time horizon used for the preview controller
     n_preview_steps = int(round(t_preview / dt))
+    Qe = 1.0 # Cost on the integral error of the ZMP reference
+    Qx = np.zeros((3, 3)) # Cost on the state vector variation. Zero by default as we don't want to penalize strong variation.
+    R = 1e-6 # Cost on the input command u(t)
 
     # ZMP reference parameters
     t_ss = 1.0  # Single support phase time window
@@ -118,9 +121,7 @@ if __name__ == "__main__":
     t, zmp_ref = compute_zmp_ref(com_initial_pose, steps_pose, dt, t_ss, t_ds)
 
     T = len(t)
-    Qe = 1.0
-    Qx = np.zeros((3, 3))
-    R = 1e-6
+
 
     # Discrete cart-table model with jerk input
     A = np.array([[1.0, dt, 0.5 * dt * dt],
