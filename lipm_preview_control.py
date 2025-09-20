@@ -191,6 +191,7 @@ if __name__ == "__main__":
         x[k + 1, 1:] = (A @ x[k, 1:] + B.ravel() * u[k, 0])
         y[k + 1, 1:] = (A @ y[k, 1:] + B.ravel() * u[k, 1])
 
+    # Plot
     fig, axes = plt.subplots(2, 2, figsize=(20, 8))
 
     # Plot ZMP and CoM trajectories
