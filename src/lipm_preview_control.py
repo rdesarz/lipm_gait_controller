@@ -178,7 +178,7 @@ if __name__ == "__main__":
     y[0] = y0
 
     # Figure
-    fig, axes = plt.subplots(2, 2, figsize=(20, 8), layout="constrained")
+    fig, axes = plt.subplots(2, 2, layout="constrained")
     plt.tight_layout(pad=1.2, w_pad=1.0, h_pad=1.0)
 
     ax_live_plot = axes[0, 0]
