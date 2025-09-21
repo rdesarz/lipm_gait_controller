@@ -33,4 +33,4 @@ The implementation is kept minimal and educational, with a focus on clarity and 
 git clone https://github.com/rdesarz/lipm-walking-controller.git
 cd lipm-walking-controller
 pip install -r requirements.txt
-python demo.py
+python src/lipm_preview_control.py
