@@ -32,7 +32,7 @@ def compute_zmp_ref(com_initial_pose, steps, dt, ss_t, ds_t):
         zmp_ref[mask, :] = (1 - alpha)[:, None] * current_step + alpha[:, None] * next_step
 
     # Last phase is single support at last foot pose
-    mask = t >= ds_t + (len(steps) - 1)  * (ss_t + ds_t)
+    mask = t >= ds_t + (len(steps) - 1) * (ss_t + ds_t)
     zmp_ref[mask, :] = steps[-1]
 
     return t, zmp_ref
@@ -207,7 +207,12 @@ if __name__ == "__main__":
     axes[1, 1].set_ylabel("y pos [m]")
     axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
 
-
+    axes[1, 0].plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
+    axes[1, 0].grid(True)
+    axes[1, 0].legend()
+    axes[1, 0].set_xlabel("time [s]")
+    axes[1, 0].set_ylabel("preview gain [-]")
+    axes[1, 0].set_title("Preview Gains")
 
     info = ax_live_plot.text(
         0.05, 0.92, "", transform=ax_live_plot.transAxes,
@@ -225,8 +230,7 @@ if __name__ == "__main__":
 
     ax_x = axes[0, 1]
     ax_y = axes[1, 1]
-    ax_gain = axes[1, 0]
-    for a in (ax_x, ax_y, ax_gain):
+    for a in (ax_x, ax_y):
         a.grid(True)
 
     # Simulate
@@ -278,14 +282,5 @@ if __name__ == "__main__":
             info.set_text(f"t={k * dt:.2f}s")
 
             plt.pause(update_frequency)
-
-    # Plot preview controller gains
-    _, axes_gains = plt.subplots()
-    axes_gains.plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
-    axes_gains.grid(True)
-    axes_gains.legend()
-    axes_gains.set_xlabel("time [s]")
-    axes_gains.set_ylabel("preview gain [-]")
-    axes_gains.set_title("Preview Gains")
 
     plt.show()
