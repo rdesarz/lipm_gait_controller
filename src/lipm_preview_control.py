@@ -183,8 +183,8 @@ if __name__ == "__main__":
     ax_live_plot.set_title("ZMP / CoM trajectories")
 
     # Plot ZMP reference vs COM on the x axis
-    # axes[0, 1].plot(t, zmp_ref[:, 0], marker='.', label='ZMP reference [x]')
-    # axes[0, 1].plot(t, x[:-1, 1], marker='.', label='COM [x]')
+    zmp_ref_x_line, = axes[0, 1].plot(t, zmp_ref[:, 0], marker='.', label='ZMP reference [x]')
+    com_ref_x_line, = axes[0, 1].plot([], [], marker='.', label='COM [x]')
     axes[0, 1].grid(True)
     axes[0, 1].legend()
     axes[0, 1].set_xlabel("t [s]")
@@ -208,10 +208,9 @@ if __name__ == "__main__":
     axes[1, 0].set_ylabel("preview gain [-]")
     axes[1, 0].set_title("Preview Gains")
 
-
     # after creating ax_xy
     info = ax_live_plot.text(
-        0.02, 0.98, "", transform=ax_live_plot.transAxes,
+        0.05, 0.92, "", transform=ax_live_plot.transAxes,
         ha="left", va="top",
         bbox=dict(boxstyle="round", fc="white", alpha=0.8)
     )
@@ -268,8 +267,7 @@ if __name__ == "__main__":
 
         if k % draw_every == 0:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
-
-            # active support polygon
+            com_ref_x_line.set_data(t[0:k + 1], com_arr[:, 0])
 
             poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
             if active_poly_patch is not None:
@@ -280,8 +278,5 @@ if __name__ == "__main__":
             info.set_text(f"t={k * dt:.2f}s")
 
             plt.pause(update_frequency)
-
-    # Plot ZMP and CoM trajectories
-
 
     plt.show()
