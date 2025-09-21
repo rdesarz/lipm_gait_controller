@@ -183,8 +183,8 @@ if __name__ == "__main__":
     ax_live_plot.set_title("ZMP / CoM trajectories")
 
     # Plot ZMP reference vs COM on the x axis
-    axes[0, 1].plot(t, zmp_ref[:, 0], marker='.', label='ZMP reference [x]')
-    com_ref_x_line, = axes[0, 1].plot([], [], marker='.', label='COM [x]')
+    axes[0, 1].plot(t, zmp_ref[:, 0], label='ZMP reference [x]')
+    com_ref_x_line, = axes[0, 1].plot([], [], label='COM [x]')
     axes[0, 1].grid(True)
     axes[0, 1].legend()
     axes[0, 1].set_xlabel("t [s]")
@@ -192,8 +192,8 @@ if __name__ == "__main__":
     axes[0, 1].set_title("ZMP reference vs COM position on X-axis")
 
     # Plot ZMP reference vs COM on the y axis
-    axes[1, 1].plot(t, zmp_ref[:, 1], marker='.', label='ZMP reference [y]')
-    com_ref_y_line, = axes[1, 1].plot([], [], marker='.', label='COM [y]')
+    axes[1, 1].plot(t, zmp_ref[:, 1], label='ZMP reference [y]')
+    com_ref_y_line, = axes[1, 1].plot([], [], label='COM [y]')
     axes[1, 1].grid(True)
     axes[1, 1].legend()
     axes[1, 1].set_xlabel("time [s]")
