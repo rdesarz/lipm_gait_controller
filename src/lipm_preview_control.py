@@ -173,7 +173,6 @@ if __name__ == "__main__":
     # Figure
     fig, axes = plt.subplots(2, 2, figsize=(20, 8))
 
-    # TL: XY live
     ax_live_plot = axes[0, 0]
     ax_live_plot.axis('equal')
     ax_live_plot.grid(True)
@@ -208,7 +207,6 @@ if __name__ == "__main__":
     axes[1, 0].set_ylabel("preview gain [-]")
     axes[1, 0].set_title("Preview Gains")
 
-    # after creating ax_xy
     info = ax_live_plot.text(
         0.05, 0.92, "", transform=ax_live_plot.transAxes,
         ha="left", va="top",
@@ -223,14 +221,13 @@ if __name__ == "__main__":
 
     ax_live_plot.legend()
 
-    # TR, BR, BL static axes (filled post-sim)
     ax_x = axes[0, 1]
     ax_y = axes[1, 1]
     ax_gain = axes[1, 0]
     for a in (ax_x, ax_y, ax_gain):
         a.grid(True)
 
-    # Simulate + draw
+    # Simulate
     zmp_xy_hist = []
     com_xy_hist = []
 
@@ -257,11 +254,10 @@ if __name__ == "__main__":
         x[k + 1, 1:] = (A @ x[k, 1:] + B.ravel() * u[k, 0])
         y[k + 1, 1:] = (A @ y[k, 1:] + B.ravel() * u[k, 1])
 
-        # record current points
+        # Plot
         com_xy_hist.append([x[k + 1, 1], y[k + 1, 1]])
         zmp_xy_hist.append([zmp_ref[k, 0], zmp_ref[k, 1]])
 
-        # draw at cadence
         com_arr = np.asarray(com_xy_hist)
         zmp_arr = np.asarray(zmp_xy_hist)
 
