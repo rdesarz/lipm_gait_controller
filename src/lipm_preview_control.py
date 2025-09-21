@@ -177,9 +177,37 @@ if __name__ == "__main__":
     ax_live_plot = axes[0, 0]
     ax_live_plot.axis('equal')
     ax_live_plot.grid(True)
+    ax_live_plot.legend()
     ax_live_plot.set_xlabel("x pos [m]")
     ax_live_plot.set_ylabel("y pos [m]")
-    ax_live_plot.set_title("ZMP / CoM trajectories (live)")
+    ax_live_plot.set_title("ZMP / CoM trajectories")
+
+    # Plot ZMP reference vs COM on the x axis
+    # axes[0, 1].plot(t, zmp_ref[:, 0], marker='.', label='ZMP reference [x]')
+    # axes[0, 1].plot(t, x[:-1, 1], marker='.', label='COM [x]')
+    axes[0, 1].grid(True)
+    axes[0, 1].legend()
+    axes[0, 1].set_xlabel("t [s]")
+    axes[0, 1].set_ylabel("x pos [m]")
+    axes[0, 1].set_title("ZMP reference vs COM position on X-axis")
+
+    # Plot ZMP reference vs COM on the y axis
+    # axes[1, 1].plot(t, zmp_ref[:, 1], marker='.', label='ZMP reference [y]')
+    # axes[1, 1].plot(t, y[:-1, 1], marker='.', label='COM [y]')
+    axes[1, 1].grid(True)
+    axes[1, 1].legend()
+    axes[1, 1].set_xlabel("time [s]")
+    axes[1, 1].set_ylabel("y pos [m]")
+    axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
+
+    # Plot preview controller gains
+    axes[1, 0].plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
+    axes[1, 0].grid(True)
+    axes[1, 0].legend()
+    axes[1, 0].set_xlabel("time [s]")
+    axes[1, 0].set_ylabel("preview gain [-]")
+    axes[1, 0].set_title("Preview Gains")
+
 
     # after creating ax_xy
     info = ax_live_plot.text(
@@ -206,6 +234,9 @@ if __name__ == "__main__":
     # Simulate + draw
     zmp_xy_hist = []
     com_xy_hist = []
+
+    update_frequency = 0.02
+    draw_every = max(1, int(update_frequency / dt))
 
     for k in range(T):
         # Apply the requested perturbation
@@ -235,55 +266,22 @@ if __name__ == "__main__":
         com_arr = np.asarray(com_xy_hist)
         zmp_arr = np.asarray(zmp_xy_hist)
 
-        com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
+        if k % draw_every == 0:
+            com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
 
-        # active support polygon
-        poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
-        if active_poly_patch is not None:
-            active_poly_patch.remove()
-            active_poly_patch = None
-        px, py = poly.exterior.xy
-        active_poly_patch = ax_live_plot.fill(px, py, color='green', alpha=0.25)[0]
-        info.set_text(f"t={k * dt:.2f}s")
+            # active support polygon
 
-        plt.pause(0.005)
+            poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
+            if active_poly_patch is not None:
+                active_poly_patch.remove()
+                active_poly_patch = None
+            px, py = poly.exterior.xy
+            active_poly_patch = ax_live_plot.fill(px, py, color='green', alpha=0.25)[0]
+            info.set_text(f"t={k * dt:.2f}s")
+
+            plt.pause(update_frequency)
 
     # Plot ZMP and CoM trajectories
-    axes[0, 0].plot(zmp_ref[:, 0], zmp_ref[:, 1], marker='.', label='ZMP ref')
-    axes[0, 0].plot(x[:, 1], y[:, 1], label='CoM', color='red')
-    plot_steps(axes[0, 0], steps_pose, foot_shape)
-    axes[0, 0].axis('equal')
-    axes[0, 0].grid(True)
-    axes[0, 0].legend()
-    axes[0, 0].set_xlabel("x pos [m]")
-    axes[0, 0].set_ylabel("y pos [m]")
-    axes[0, 0].set_title("ZMP / CoM trajectories")
 
-    # Plot ZMP reference vs COM on the x axis
-    axes[0, 1].plot(t, zmp_ref[:, 0], marker='.', label='ZMP reference [x]')
-    axes[0, 1].plot(t, x[:-1, 1], marker='.', label='COM [x]')
-    axes[0, 1].grid(True)
-    axes[0, 1].legend()
-    axes[0, 1].set_xlabel("t [s]")
-    axes[0, 1].set_ylabel("x pos [m]")
-    axes[0, 1].set_title("ZMP reference vs COM position on X-axis")
 
-    # Plot ZMP reference vs COM on the y axis
-    axes[1, 1].plot(t, zmp_ref[:, 1], marker='.', label='ZMP reference [y]')
-    axes[1, 1].plot(t, y[:-1, 1], marker='.', label='COM [y]')
-    axes[1, 1].grid(True)
-    axes[1, 1].legend()
-    axes[1, 1].set_xlabel("time [s]")
-    axes[1, 1].set_ylabel("y pos [m]")
-    axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
-
-    # Plot preview controller gains
-    axes[1, 0].plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
-    axes[1, 0].grid(True)
-    axes[1, 0].legend()
-    axes[1, 0].set_xlabel("time [s]")
-    axes[1, 0].set_ylabel("preview gain [-]")
-    axes[1, 0].set_title("Preview Gains")
-
-    plt.tight_layout()
     plt.show()
