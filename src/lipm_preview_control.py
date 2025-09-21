@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 from matplotlib import pyplot as plt
+import imageio.v2 as imageio
 from shapely import Polygon, Point, affinity, union
 from shapely.ops import nearest_points
 from scipy.linalg import solve_discrete_are
@@ -178,8 +179,7 @@ if __name__ == "__main__":
     y[0] = y0
 
     # Figure
-    fig, axes = plt.subplots(2, 2, layout="constrained")
-    plt.tight_layout(pad=1.2, w_pad=1.0, h_pad=1.0)
+    fig, axes = plt.subplots(2, 2, layout="constrained", figsize=(12,8))
 
     ax_live_plot = axes[0, 0]
     ax_live_plot.axis('equal')
@@ -240,6 +240,7 @@ if __name__ == "__main__":
     update_frequency = 0.02
     draw_every = max(1, int(update_frequency / dt))
 
+    frames = []
     for k in range(T):
         # Apply the requested perturbation
         if k_push <= k < k_push + n_push:
@@ -283,4 +284,10 @@ if __name__ == "__main__":
 
             plt.pause(update_frequency)
 
-    plt.show()
+            # Uncomment to save the plot
+            # fig.canvas.draw()
+            # frame = np.asarray(fig.canvas.buffer_rgba())
+            # frames.append(frame.copy())
+
+    # Uncomment to save the plot
+    # imageio.mimsave("traj.gif", frames[2:], fps=int(1/update_frequency))

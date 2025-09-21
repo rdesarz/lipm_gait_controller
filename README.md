@@ -3,6 +3,10 @@
 An implementation of the **Linear Inverted Pendulum Model (LIPM)** walking pattern generator using **preview control of 
 the Zero-Moment Point (ZMP)**, following _Kajita et al. “Biped Walking Pattern Generation by Using Preview Control of Zero-Moment Point.”_
 
+The figure below shows an example of the simulated trajectory of the Center of Mass versus the ZMP reference
+
+![](img/traj.gif)
+
 ---
 
 ## Overview
