@@ -8,7 +8,7 @@ from scipy.linalg import solve_discrete_are
 
 
 def compute_zmp_ref(com_initial_pose, steps, dt, ss_t, ds_t):
-    T = int((len(steps) - 1) * (ss_t + ds_t) / dt + ds_t / dt)
+    T = int((len(steps) - 1) * (ss_t + ds_t) / dt + (ds_t + ss_t) / dt)
 
     t = np.arange(T) * dt
     zmp_ref = np.zeros([T, 2])
@@ -18,6 +18,7 @@ def compute_zmp_ref(com_initial_pose, steps, dt, ss_t, ds_t):
     alpha = t[mask] / ds_t
     zmp_ref[mask, :] = (1 - alpha)[:, None] * com_initial_pose + alpha[:, None] * steps[0]
 
+    # Alternate between foot
     for idx, (current_step, next_step) in enumerate(zip(steps[:-1], steps[1:])):
         # Compute current time range
         t_start = ds_t + idx * (ss_t + ds_t)
@@ -29,6 +30,10 @@ def compute_zmp_ref(com_initial_pose, steps, dt, ss_t, ds_t):
         mask = (t >= t_start + ss_t) & (t < t_start + ss_t + ds_t)
         alpha = (t[mask] - (t_start + ss_t)) / ds_t
         zmp_ref[mask, :] = (1 - alpha)[:, None] * current_step + alpha[:, None] * next_step
+
+    # Last phase is single support at last foot pose
+    mask = t >= ds_t + (len(steps) - 1)  * (ss_t + ds_t)
+    zmp_ref[mask, :] = steps[-1]
 
     return t, zmp_ref
 
@@ -70,6 +75,8 @@ def get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape):
     t_in = tk - i * t_step
     if t_in < t_ss:
         return compute_single_support_polygon(steps_pose[i], foot_shape)
+    elif tk >= (len(steps_pose) - 1) * t_step:
+        return compute_single_support_polygon(steps_pose[-1], foot_shape)
     else:
         return compute_double_support_polygon(steps_pose[i], steps_pose[i + 1], foot_shape)
 
@@ -171,7 +178,8 @@ if __name__ == "__main__":
     y[0] = y0
 
     # Figure
-    fig, axes = plt.subplots(2, 2, figsize=(20, 8))
+    fig, axes = plt.subplots(2, 2, figsize=(20, 8), layout="constrained")
+    plt.tight_layout(pad=1.2, w_pad=1.0, h_pad=1.0)
 
     ax_live_plot = axes[0, 0]
     ax_live_plot.axis('equal')
@@ -271,7 +279,8 @@ if __name__ == "__main__":
                 active_poly_patch.remove()
                 active_poly_patch = None
             px, py = poly.exterior.xy
-            active_poly_patch = ax_live_plot.fill(px, py, color='green', alpha=0.25)[0]
+            active_poly_patch = ax_live_plot.fill(px, py, color='green', alpha=0.25, label='Support polygon')[0]
+            ax_live_plot.legend()
             info.set_text(f"t={k * dt:.2f}s")
 
             plt.pause(update_frequency)
