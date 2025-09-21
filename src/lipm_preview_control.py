@@ -183,7 +183,7 @@ if __name__ == "__main__":
     ax_live_plot.set_title("ZMP / CoM trajectories")
 
     # Plot ZMP reference vs COM on the x axis
-    zmp_ref_x_line, = axes[0, 1].plot(t, zmp_ref[:, 0], marker='.', label='ZMP reference [x]')
+    axes[0, 1].plot(t, zmp_ref[:, 0], marker='.', label='ZMP reference [x]')
     com_ref_x_line, = axes[0, 1].plot([], [], marker='.', label='COM [x]')
     axes[0, 1].grid(True)
     axes[0, 1].legend()
@@ -192,8 +192,8 @@ if __name__ == "__main__":
     axes[0, 1].set_title("ZMP reference vs COM position on X-axis")
 
     # Plot ZMP reference vs COM on the y axis
-    # axes[1, 1].plot(t, zmp_ref[:, 1], marker='.', label='ZMP reference [y]')
-    # axes[1, 1].plot(t, y[:-1, 1], marker='.', label='COM [y]')
+    axes[1, 1].plot(t, zmp_ref[:, 1], marker='.', label='ZMP reference [y]')
+    com_ref_y_line, = axes[1, 1].plot([], [], marker='.', label='COM [y]')
     axes[1, 1].grid(True)
     axes[1, 1].legend()
     axes[1, 1].set_xlabel("time [s]")
@@ -268,6 +268,7 @@ if __name__ == "__main__":
         if k % draw_every == 0:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
             com_ref_x_line.set_data(t[0:k + 1], com_arr[:, 0])
+            com_ref_y_line.set_data(t[0:k + 1], com_arr[:, 1])
 
             poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
             if active_poly_patch is not None:
