@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     # ZMP reference parameters
     t_ss = 1.0  # Single support phase time window
-    t_ds = 0.05  # Double support phase time window
+    t_ds = 0.2  # Double support phase time window
     com_initial_pose = np.array([0.0, 0.0])
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
     steps_pose = np.array([[0.0, -0.1],
@@ -174,23 +174,20 @@ if __name__ == "__main__":
     fig, axes = plt.subplots(2, 2, figsize=(20, 8))
 
     # TL: XY live
-    ax_xy = axes[0, 0]
-    plot_steps(ax_xy, steps_pose, foot_shape)
-    ax_xy.axis('equal')
-    ax_xy.grid(True)
-    ax_xy.set_xlabel("x pos [m]")
-    ax_xy.set_ylabel("y pos [m]")
-    ax_xy.set_title("ZMP / CoM trajectories (live)")
+    ax_live_plot = axes[0, 0]
+    ax_live_plot.axis('equal')
+    ax_live_plot.grid(True)
+    ax_live_plot.set_xlabel("x pos [m]")
+    ax_live_plot.set_ylabel("y pos [m]")
+    ax_live_plot.set_title("ZMP / CoM trajectories (live)")
 
     # Static ZMP ref path for context
-    zmp_path_line, = ax_xy.plot([], [], marker='.', linestyle='-', label='ZMP ref', alpha=0.6)
-    com_path_line, = ax_xy.plot([], [], linestyle='-', label='CoM', color='red')
-    com_point, = ax_xy.plot([], [], marker='o', markersize=6, color='red')
-    zmp_point, = ax_xy.plot([], [], marker='x', markersize=6, alpha=0.7)
+    zmp_path_line, = ax_live_plot.plot(zmp_ref[:, 0], zmp_ref[:, 1], marker='.', linestyle='-', label='ZMP ref', alpha=0.6)
+    com_path_line, = ax_live_plot.plot([], [], linestyle='-', label='CoM', color='red')
 
     active_poly_patch = None
 
-    ax_xy.legend()
+    ax_live_plot.legend()
 
     # TR, BR, BL static axes (filled post-sim)
     ax_x = axes[0, 1]
@@ -236,9 +233,6 @@ if __name__ == "__main__":
             zmp_arr = np.asarray(zmp_xy_hist)
 
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
-            zmp_path_line.set_data(zmp_ref[:k + 1, 0], zmp_ref[:k + 1, 1])
-            # com_point.set_data(com_arr[-1, 0], com_arr[-1, 1])
-            # zmp_point.set_data(zmp_arr[-1, 0], zmp_arr[-1, 1])
 
             # active support polygon
             poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
@@ -246,12 +240,9 @@ if __name__ == "__main__":
                 active_poly_patch.remove()
                 active_poly_patch = None
             px, py = poly.exterior.xy
-            active_poly_patch = ax_xy.fill(px, py, color='green', alpha=0.25)[0]
+            active_poly_patch = ax_live_plot.fill(px, py, color='green', alpha=0.25)[0]
 
-            plt.pause(0.001)
-
-    # Plot
-    fig, axes = plt.subplots(2, 2, figsize=(20, 8))
+            plt.pause(dt)
 
     # Plot ZMP and CoM trajectories
     axes[0, 0].plot(zmp_ref[:, 0], zmp_ref[:, 1], marker='.', label='ZMP ref')
