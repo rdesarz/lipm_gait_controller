@@ -207,13 +207,7 @@ if __name__ == "__main__":
     axes[1, 1].set_ylabel("y pos [m]")
     axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
 
-    # Plot preview controller gains
-    axes[1, 0].plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
-    axes[1, 0].grid(True)
-    axes[1, 0].legend()
-    axes[1, 0].set_xlabel("time [s]")
-    axes[1, 0].set_ylabel("preview gain [-]")
-    axes[1, 0].set_title("Preview Gains")
+
 
     info = ax_live_plot.text(
         0.05, 0.92, "", transform=ax_live_plot.transAxes,
@@ -284,5 +278,14 @@ if __name__ == "__main__":
             info.set_text(f"t={k * dt:.2f}s")
 
             plt.pause(update_frequency)
+
+    # Plot preview controller gains
+    _, axes_gains = plt.subplots()
+    axes_gains.plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
+    axes_gains.grid(True)
+    axes_gains.legend()
+    axes_gains.set_xlabel("time [s]")
+    axes_gains.set_ylabel("preview gain [-]")
+    axes_gains.set_title("Preview Gains")
 
     plt.show()
