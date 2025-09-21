@@ -290,4 +290,4 @@ if __name__ == "__main__":
             # frames.append(frame.copy())
 
     # Uncomment to save the plot
-    # imageio.mimsave("traj.gif", frames[2:], fps=int(1/update_frequency))
+    # imageio.mimsave("img/traj.gif", frames[2:], fps=int(1/update_frequency * 2), loop=10) # Save at frame divided by 2
