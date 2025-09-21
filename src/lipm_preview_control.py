@@ -62,16 +62,15 @@ def plot_steps(axes, steps_pose, step_shape):
         axes.fill(x, y, color="red", alpha=0.5)  # filled polygon
 
 
-def get_active_polygon(k, dt, steps_pose, t_ss, t_ds):
+def get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape):
     tk = k * dt
     t_step = t_ss + t_ds
-
-    i = int(tk / t_step)  # step index
+    i = int(tk / t_step)
     i = min(i, len(steps_pose) - 2)
     t_in = tk - i * t_step
-    if t_in < t_ss:  # single support on step i
+    if t_in < t_ss:
         return compute_single_support_polygon(steps_pose[i], foot_shape)
-    else:  # double support between i and i+1
+    else:
         return compute_double_support_polygon(steps_pose[i], steps_pose[i + 1], foot_shape)
 
 
@@ -94,11 +93,12 @@ if __name__ == "__main__":
     w = math.sqrt(g / zc)
 
     # Preview controller parameters
-    t_preview = 1.6 # Time horizon used for the preview controller
+    t_preview = 1.6  # Time horizon used for the preview controller
     n_preview_steps = int(round(t_preview / dt))
-    Qe = 1.0 # Cost on the integral error of the ZMP reference
-    Qx = np.zeros((3, 3)) # Cost on the state vector variation. Zero by default as we don't want to penalize strong variation.
-    R = 1e-6 # Cost on the input command u(t)
+    Qe = 1.0  # Cost on the integral error of the ZMP reference
+    Qx = np.zeros(
+        (3, 3))  # Cost on the state vector variation. Zero by default as we don't want to penalize strong variation.
+    R = 1e-6  # Cost on the input command u(t)
 
     # ZMP reference parameters
     t_ss = 1.0  # Single support phase time window
@@ -160,17 +160,52 @@ if __name__ == "__main__":
 
     zmp_padded = np.vstack([
         zmp_ref,
-        np.repeat(zmp_ref[-1][None, :], n_preview_steps, axis=0)  # pad NL rows
+        np.repeat(zmp_ref[-1][None, :], n_preview_steps, axis=0)
     ])
 
-    x0 = np.array([0.0, 0.0, 0.0, 0.0], dtype=float)  # [x, xdot]
-    y0 = np.array([0.0, 0.0, 0.0, 0.0], dtype=float)  # [y, ydot]
+    x0 = np.array([0.0, 0.0, 0.0, 0.0], dtype=float)
+    y0 = np.array([0.0, 0.0, 0.0, 0.0], dtype=float)
     x = np.zeros((len(zmp_ref) + 1, 4), dtype=float)
     y = np.zeros((len(zmp_ref) + 1, 4), dtype=float)
     x[0] = x0
     y[0] = y0
 
-    # Simulate the trajectory of the COM
+    # Figure
+    fig, axes = plt.subplots(2, 2, figsize=(20, 8))
+
+    # TL: XY live
+    ax_xy = axes[0, 0]
+    plot_steps(ax_xy, steps_pose, foot_shape)
+    ax_xy.axis('equal')
+    ax_xy.grid(True)
+    ax_xy.set_xlabel("x pos [m]")
+    ax_xy.set_ylabel("y pos [m]")
+    ax_xy.set_title("ZMP / CoM trajectories (live)")
+
+    # Static ZMP ref path for context
+    zmp_path_line, = ax_xy.plot([], [], marker='.', linestyle='-', label='ZMP ref', alpha=0.6)
+    com_path_line, = ax_xy.plot([], [], linestyle='-', label='CoM', color='red')
+    com_point, = ax_xy.plot([], [], marker='o', markersize=6, color='red')
+    zmp_point, = ax_xy.plot([], [], marker='x', markersize=6, alpha=0.7)
+
+    active_poly_patch = None
+
+    ax_xy.legend()
+
+    # TR, BR, BL static axes (filled post-sim)
+    ax_x = axes[0, 1]
+    ax_y = axes[1, 1]
+    ax_gain = axes[1, 0]
+    for a in (ax_x, ax_y, ax_gain):
+        a.grid(True)
+
+    # Animation cadence
+    draw_every = max(1, int(0.02 / dt))  # ~50 Hz
+
+    # Simulate + draw
+    zmp_xy_hist = []
+    com_xy_hist = []
+
     for k in range(T):
         # Apply the requested perturbation
         if k_push <= k < k_push + n_push:
@@ -190,6 +225,30 @@ if __name__ == "__main__":
 
         x[k + 1, 1:] = (A @ x[k, 1:] + B.ravel() * u[k, 0])
         y[k + 1, 1:] = (A @ y[k, 1:] + B.ravel() * u[k, 1])
+
+        # record current points
+        com_xy_hist.append([x[k + 1, 1], y[k + 1, 1]])
+        zmp_xy_hist.append([zmp_ref[k, 0], zmp_ref[k, 1]])
+
+        # draw at cadence
+        if k % draw_every == 0 or k == T - 1:
+            com_arr = np.asarray(com_xy_hist)
+            zmp_arr = np.asarray(zmp_xy_hist)
+
+            com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
+            zmp_path_line.set_data(zmp_ref[:k + 1, 0], zmp_ref[:k + 1, 1])
+            # com_point.set_data(com_arr[-1, 0], com_arr[-1, 1])
+            # zmp_point.set_data(zmp_arr[-1, 0], zmp_arr[-1, 1])
+
+            # active support polygon
+            poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
+            if active_poly_patch is not None:
+                active_poly_patch.remove()
+                active_poly_patch = None
+            px, py = poly.exterior.xy
+            active_poly_patch = ax_xy.fill(px, py, color='green', alpha=0.25)[0]
+
+            plt.pause(0.001)
 
     # Plot
     fig, axes = plt.subplots(2, 2, figsize=(20, 8))
