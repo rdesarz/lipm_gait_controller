@@ -181,8 +181,15 @@ if __name__ == "__main__":
     ax_live_plot.set_ylabel("y pos [m]")
     ax_live_plot.set_title("ZMP / CoM trajectories (live)")
 
+    # after creating ax_xy
+    info = ax_live_plot.text(
+        0.02, 0.98, "", transform=ax_live_plot.transAxes,
+        ha="left", va="top",
+        bbox=dict(boxstyle="round", fc="white", alpha=0.8)
+    )
+
     # Static ZMP ref path for context
-    zmp_path_line, = ax_live_plot.plot(zmp_ref[:, 0], zmp_ref[:, 1], marker='.', linestyle='-', label='ZMP ref', alpha=0.6)
+    zmp_path_line, = ax_live_plot.plot(zmp_ref[:, 0], zmp_ref[:, 1], linestyle='-', label='ZMP ref', alpha=1.0)
     com_path_line, = ax_live_plot.plot([], [], linestyle='-', label='CoM', color='red')
 
     active_poly_patch = None
@@ -195,9 +202,6 @@ if __name__ == "__main__":
     ax_gain = axes[1, 0]
     for a in (ax_x, ax_y, ax_gain):
         a.grid(True)
-
-    # Animation cadence
-    draw_every = max(1, int(0.02 / dt))  # ~50 Hz
 
     # Simulate + draw
     zmp_xy_hist = []
@@ -228,21 +232,21 @@ if __name__ == "__main__":
         zmp_xy_hist.append([zmp_ref[k, 0], zmp_ref[k, 1]])
 
         # draw at cadence
-        if k % draw_every == 0 or k == T - 1:
-            com_arr = np.asarray(com_xy_hist)
-            zmp_arr = np.asarray(zmp_xy_hist)
+        com_arr = np.asarray(com_xy_hist)
+        zmp_arr = np.asarray(zmp_xy_hist)
 
-            com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
+        com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
 
-            # active support polygon
-            poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
-            if active_poly_patch is not None:
-                active_poly_patch.remove()
-                active_poly_patch = None
-            px, py = poly.exterior.xy
-            active_poly_patch = ax_live_plot.fill(px, py, color='green', alpha=0.25)[0]
+        # active support polygon
+        poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
+        if active_poly_patch is not None:
+            active_poly_patch.remove()
+            active_poly_patch = None
+        px, py = poly.exterior.xy
+        active_poly_patch = ax_live_plot.fill(px, py, color='green', alpha=0.25)[0]
+        info.set_text(f"t={k * dt:.2f}s")
 
-            plt.pause(dt)
+        plt.pause(0.005)
 
     # Plot ZMP and CoM trajectories
     axes[0, 0].plot(zmp_ref[:, 0], zmp_ref[:, 1], marker='.', label='ZMP ref')
