@@ -38,3 +38,14 @@ git clone https://github.com/rdesarz/lipm-walking-controller.git
 cd lipm-walking-controller
 pip install -r requirements.txt
 python src/lipm_preview_control.py
+```
+
+---
+
+## Next Steps
+
+The aim of this project is to generate walking commands for a humanoid robot in simulation. Upcoming work:
+
+- **Footstep generation**: automatic creation of step sequences instead of hard-coded references.  
+- **Inverse kinematics integration**: map CoM trajectories to joint angles using Pinocchio.  
+- **Disturbance handling**: simulate pushes and evaluate preview controller robustness.  
