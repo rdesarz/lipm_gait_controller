@@ -11,8 +11,7 @@ PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
 URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")  # note: underscore
 
 # World-frame targets
-COM_TARGET = np.array([0.0, 0.0, -0.185])
-LF_POS_TARGET = np.array([0.1, 0.085, -1.083])
+COM_TARGET = np.array([-0.02404194,  0.00122989, -0.150])
 
 # Solver params
 ITERS = 200
@@ -42,8 +41,10 @@ def set_joint(q, joint_name, val):
     if jid > 0 and full_model.joints[jid].nq == 1:
         q[full_model.joints[jid].idx_q] = val
 
-set_joint(q, "leg_left_4_joint", 0.2)
-set_joint(q, "leg_right_4_joint", 0.2)
+set_joint(q, "leg_left_4_joint", 0.0)
+set_joint(q, "leg_right_4_joint", 0.0)
+set_joint(q, "arm_right_4_joint", -1.2)
+set_joint(q, "arm_left_4_joint", -1.2)
 
 joints_to_lock = [i for i in range(14, 48)]
 
@@ -69,8 +70,10 @@ pin.forwardKinematics(red_model, red_data, q)
 pin.updateFramePlacements(red_model, red_data)
 oMf_rf0 = red_data.oMf[RF].copy()
 
+LF_POS_TARGET = red_data.oMf[LF].translation
+print(pin.centerOfMass(red_model, red_data, q))
 
-# -------------------- HQP step --------------------
+# -------------------- HQP step -------------------
 def hqp_step(q):
     # Compute forward kinematics for the current configuration
     pin.forwardKinematics(red_model, red_data, q)
