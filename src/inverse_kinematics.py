@@ -43,12 +43,16 @@ RF = model.getFrameId("right_sole_link")
 # -------------------- Seed --------------------
 q = pin.neutral(model)
 
+for j_id, j_name in enumerate(model.names):
+    print(j_id, j_name, model.joints[j_id].shortname())
 
 # light knee flex to avoid singular straight legs
 def set_joint(q, joint_name, val):
     jid = model.getJointId(joint_name)
     if jid > 0 and model.joints[jid].nq == 1:
         q[model.joints[jid].idx_q] = val
+
+red_model, red_geom = pin.buildReducedModel(model, col_model, [i for i in range(14) if i is not 0], q)
 
 set_joint(q, "leg_left_4_joint", 0.0)
 set_joint(q, "leg_right_4_joint", 0.0)
