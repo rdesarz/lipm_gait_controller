@@ -12,7 +12,7 @@ URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")  # note: unde
 
 # World-frame targets
 COM_TARGET = np.array([0.0, 0.0, -0.185])
-LF_POS_TARGET = np.array([0.4, 0.085, -1.083])
+LF_POS_TARGET = np.array([0.1, 0.085, -1.083])
 
 # Solver params
 ITERS = 200
@@ -30,6 +30,9 @@ if not os.path.isfile(URDF):
 
 full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(URDF, PKG_PARENT, pin.JointModelFreeFlyer())
 
+for j_id, j_name in enumerate(full_model.names):
+    print(j_id, j_name, full_model.joints[j_id].shortname())
+
 # -------------------- Seed --------------------
 q = pin.neutral(full_model)
 
@@ -39,14 +42,16 @@ def set_joint(q, joint_name, val):
     if jid > 0 and full_model.joints[jid].nq == 1:
         q[full_model.joints[jid].idx_q] = val
 
-set_joint(q, "leg_left_4_joint", 0.0)
-set_joint(q, "leg_right_4_joint", 0.0)
+set_joint(q, "leg_left_4_joint", 0.2)
+set_joint(q, "leg_right_4_joint", 0.2)
+
+joints_to_lock = [i for i in range(14, 48)]
 
 # Build reduced model
-red_model, red_geom = pin.buildReducedModel(full_model, full_col_model, [i for i in range(14) if i is not 0], q)
-_, red_vis = pin.buildReducedModel(full_model, full_vis_model, [i for i in range(14) if i is not 0], q)
+red_model, red_geom = pin.buildReducedModel(full_model, full_col_model, joints_to_lock, q)
+_, red_vis = pin.buildReducedModel(full_model, full_vis_model, joints_to_lock, q)
 
-data = red_model.createData()
+red_data = red_model.createData()
 
 viz = MeshcatVisualizer(red_model, red_geom, red_vis)
 try:
@@ -55,30 +60,32 @@ try:
 except Exception:
     viz = None
 
+LF = red_model.getFrameId("left_sole_link")
+RF = red_model.getFrameId("right_sole_link")
 
 q = pin.neutral(red_model)
 
-pin.forwardKinematics(red_model, data, q)
-pin.updateFramePlacements(red_model, data)
-oMf_rf0 = data.oMf[RF].copy()
+pin.forwardKinematics(red_model, red_data, q)
+pin.updateFramePlacements(red_model, red_data)
+oMf_rf0 = red_data.oMf[RF].copy()
 
 
 # -------------------- HQP step --------------------
 def hqp_step(q):
     # Compute forward kinematics for the current configuration
-    pin.forwardKinematics(red_model, data, q)
-    pin.updateFramePlacements(red_model, data)
+    pin.forwardKinematics(red_model, red_data, q)
+    pin.updateFramePlacements(red_model, red_data)
 
     # Compute center of mass position as well as its Jacobian
-    com = pin.centerOfMass(red_model, data, q)
-    pin.computeCentroidalMap(red_model, data, q)  # ensure Jcom validity
-    Jcom = pin.jacobianCenterOfMass(red_model, data, q)  # (3,nv)
+    com = pin.centerOfMass(red_model, red_data, q)
+    pin.computeCentroidalMap(red_model, red_data, q)  # ensure Jcom validity
+    Jcom = pin.jacobianCenterOfMass(red_model, red_data, q)  # (3,nv)
 
     # Compute pose and Jacobian of the left and right foot
-    oMf_lf = data.oMf[LF]
-    oMf_rf = data.oMf[RF]
-    J_lf = pin.computeFrameJacobian(red_model, data, q, LF, RFREF)[:3, :]  # (3,nv)
-    J_rf = pin.computeFrameJacobian(red_model, data, q, RF, RFREF)  # (6,nv)
+    oMf_lf = red_data.oMf[LF]
+    oMf_rf = red_data.oMf[RF]
+    J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RFREF)[:3, :]  # (3,nv)
+    J_rf = pin.computeFrameJacobian(red_model, red_data, q, RF, RFREF)  # (6,nv)
 
     # Compute errors of positionning
     e_lf = LF_POS_TARGET - oMf_lf.translation  # We want the left foot to match the desired target
@@ -108,10 +115,10 @@ q_new, dq = hqp_step(q)
 q = q_new
 
 # -------------------- Report --------------------
-pin.forwardKinematics(red_model, data, q)
-pin.updateFramePlacements(red_model, data)
-com_final = pin.centerOfMass(red_model, data, q)
-lf_final = data.oMf[LF].translation
+pin.forwardKinematics(red_model, red_data, q)
+pin.updateFramePlacements(red_model, red_data)
+com_final = pin.centerOfMass(red_model, red_data, q)
+lf_final = red_data.oMf[LF].translation
 print(f"CoM final     : {com_final}  | err: {COM_TARGET - com_final}")
 print(f"Left foot pos : {lf_final}    | err: {LF_POS_TARGET - lf_final}")
 if viz:
