@@ -11,8 +11,8 @@ PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
 URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")  # note: underscore
 
 # World-frame targets
-COM_TARGET = np.array([0.0, 0.0, -0.19305])
-LF_POS_TARGET = np.array([0.5, 0.2, -1.08305])
+COM_TARGET = np.array([0.0, 0.0, -0.185])
+LF_POS_TARGET = np.array([0.2, 0.085, -1.083])
 
 # Solver params
 ITERS = 200
@@ -50,11 +50,10 @@ def set_joint(q, joint_name, val):
     if jid > 0 and model.joints[jid].nq == 1:
         q[model.joints[jid].idx_q] = val
 
+set_joint(q, "leg_left_4_joint", 0.0)
+set_joint(q, "leg_right_4_joint", 0.0)
 
-set_joint(q, "leg_left_4_joint", 0.20)
-set_joint(q, "leg_right_4_joint", 0.20)
-
-pin.forwardKinematics(model, data, q);
+pin.forwardKinematics(model, data, q)
 pin.updateFramePlacements(model, data)
 oMf_rf0 = data.oMf[RF].copy()
 
@@ -79,7 +78,7 @@ def hqp_step(q):
     # Compute errors of positionning
     e_lf = LF_POS_TARGET - oMf_lf.translation # We want the left foot to match the desired target
     e_com = COM_TARGET - com # We want the CoM to match the desired target
-    e_rf6 = pin.log(oMf_rf.inverse() * oMf_rf0).vector  # target zero
+    e_rf6 = pin.log(oMf_rf.inverse() * oMf_rf0).vector
     b_eq = -e_rf6  # J_rf dq = -e_rf6
 
     nv = model.nv
@@ -91,39 +90,23 @@ def hqp_step(q):
     # Equality: hard contact
     Aeq, beq = J_rf, b_eq
 
-    # Velocity box limits via inequalities
-    dqmax = DQ_LIM * np.ones(nv)
-    dqmin = -DQ_LIM * np.ones(nv)
-    A_ineq = np.vstack([np.eye(nv), -np.eye(nv)])
-    ub = np.hstack([dqmax, -dqmin])
     # qpsolvers expects either (G,h) with x <= h or (lb <= A x <= ub). We'll use A and ub with no lb.
-    dq = solve_qp(P=H, q=g, G=A_ineq, h=ub, A=Aeq, b=beq, solver="osqp")  # returns None if infeasible
-
-    if dq is None:
-        # fallback: least-squares with equality via normal equations
-        # solve [H  Aeq^T; Aeq 0][dq; λ] = [ -g; beq ]
-        KKT = np.block([[H, Aeq.T], [Aeq, np.zeros((Aeq.shape[0], Aeq.shape[0]))]])
-        rhs = np.hstack([-g, beq])
-        sol = np.linalg.lstsq(KKT, rhs, rcond=None)[0]
-        dq = sol[:nv]
+    dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")  # returns None if infeasible
 
     q_next = pin.integrate(model, q, dq)
+
     return q_next, dq
 
 
-# -------------------- Loop --------------------
-for it in range(ITERS):
-    q_new, dq = hqp_step(q)
-    q = q_new
-    if viz: viz.display(q)
-    if np.linalg.norm(dq) < TOL_DQ: break
+# Single step of the QP
+q_new, dq = hqp_step(q)
+q = q_new
 
 # -------------------- Report --------------------
-pin.forwardKinematics(model, data, q);
+pin.forwardKinematics(model, data, q)
 pin.updateFramePlacements(model, data)
 com_final = pin.centerOfMass(model, data, q)
 lf_final = data.oMf[LF].translation
-print(f"Iterations: {it + 1}")
 print(f"CoM final     : {com_final}  | err: {COM_TARGET - com_final}")
 print(f"Left foot pos : {lf_final}    | err: {LF_POS_TARGET - lf_final}")
 if viz:
