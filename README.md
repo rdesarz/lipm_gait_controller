@@ -33,11 +33,23 @@ The implementation is kept minimal and educational, with a focus on clarity and 
 
 ## Quickstart
 
+### ZMP preview control
+
 ```bash
 git clone https://github.com/rdesarz/lipm-walking-controller.git
 cd lipm-walking-controller
 pip install -r requirements.txt
 python src/lipm_preview_control.py
+```
+
+### Inverse kinematics
+
+```bash
+git clone https://github.com/rdesarz/lipm-walking-controller.git
+cd lipm-walking-controller
+pip install -r requirements.txt
+git clone https://github.com/stack-of-tasks/talos-data.git talos_data
+python src/inverse_kinematics.py
 ```
 
 ---
