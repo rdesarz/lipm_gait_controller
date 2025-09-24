@@ -100,60 +100,80 @@ def apply_qp(q, com_target):
     pin.updateFramePlacements(red_model, red_data)
 
     com = pin.centerOfMass(red_model, red_data, q)
-    # pin.computeCentroidalMap(red_model, red_data, q)
     Jcom = pin.jacobianCenterOfMass(red_model, red_data, q)
 
-    oMf_lf = red_data.oMf[LF]
-    oMf_rf = red_data.oMf[RF]
-    J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RFREF)
-    J_rf = pin.computeFrameJacobian(red_model, red_data, q, RF, RFREF)  # (6,nv)
+    RF_REF = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
+    J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RF_REF)
+    J_rf = pin.computeFrameJacobian(red_model, red_data, q, RF, RF_REF)  # (6,nv)
 
     # --- torso upright constraint (roll=pitch=0, yaw free) ---
-    oMf_torso = red_data.oMf[TORSO]
-    R = oMf_torso.rotation
-    # keep current yaw, zero roll/pitch target
+    R = red_data.oMf[TORSO].rotation
     roll, pitch, yaw = Rotation.from_matrix(R).as_euler('xyz', degrees=False)
-
     Rdes = Rotation.from_euler('xyz', [0, 0, yaw]).as_matrix()
     e_rot = pin.log3(R.T @ Rdes)  # so3 error (3,)
+
     S = np.array([[1.0, 0.0, 0.0],  # select roll,pitch only
                   [0.0, 1.0, 0.0]])
-    e_torso = (S @ e_rot).reshape(-1)  # (2,)
 
-    J_torso6 = pin.computeFrameJacobian(red_model, red_data, q, TORSO, RFREF)
+    J_torso6 = pin.computeFrameJacobian(red_model, red_data, q, TORSO, RF_REF)
     J_torso_ang = J_torso6[3:6, :]  # (3,nv)
     A_torso = S @ J_torso_ang  # (2,nv)
-    b_torso = -e_torso  # A_torso dq = -e_torso
 
+    # Compute errors
+    e_com = com_target - com
+    e_rf6 = pin.log(red_data.oMf[RF].inverse() * oMf_rf0).vector
+    e_lf6 = pin.log(red_data.oMf[LF].inverse() * oMf_lf0).vector
 
-    e_com = (com_target - com)
-    e_lf6 = pin.log(oMf_lf.inverse() * oMf_lf0).vector
-    e_rf6 = pin.log(oMf_rf.inverse() * oMf_rf0).vector
+    # Compute cost
     nv = red_model.nv
+    H = MU * np.eye(nv) + W_COM * (Jcom.T @ Jcom) + W_TORSO * (A_torso.T @ A_torso)
+    g = - W_COM * (Jcom.T @ e_com) - W_TORSO * (A_torso.T @ (S @ e_rot))
 
-    H = (W_COM * (Jcom.T @ Jcom)) + MU * np.eye(nv) + W_TORSO * (A_torso.T @ A_torso)
-    g = -(W_COM * (Jcom.T @ e_com)) - W_TORSO * (A_torso.T @ e_torso * -1.0)
-
+    # Compute equality constraints
+    kc = 0.0
     Aeq = np.vstack([J_rf, J_lf])
-    beq = np.hstack([-e_rf6, -e_lf6])
+    beq = -kc * np.hstack([e_rf6, e_lf6])
 
+    H = 0.5 * (H + H.T)
+
+    # Solve QP
     dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
+
+
+    # Integrate to get next q
     q_next = pin.integrate(red_model, q, dq)
+
     return q_next, dq
 
 
 # Implement a squat motion
-com_target = np.array([-0.02404194, 0.00122989, -0.12])
-for k in range(10):
-    com_target[2] = com_target[2] - 0.01
-    q_new, dq = apply_qp(q, com_target)
-    q = q_new
+com_target = pin.centerOfMass(red_model, red_data, q)
 
-    pin.forwardKinematics(red_model, red_data, q)
-    pin.updateFramePlacements(red_model, red_data)
-    com_final = pin.centerOfMass(red_model, red_data, q)
-    lf_final = red_data.oMf[LF].translation
-    print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
-    if viz:
-        viz.display(q)
-        sleep(0.5)
+for l in range(10):
+    for k in range(20):
+        com_target[2] = com_target[2] - 0.01
+        q_new, dq = apply_qp(q, com_target)
+        q = q_new
+
+        pin.forwardKinematics(red_model, red_data, q)
+        pin.updateFramePlacements(red_model, red_data)
+        com_final = pin.centerOfMass(red_model, red_data, q)
+        lf_final = red_data.oMf[LF].translation
+        print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
+        if viz:
+            viz.display(q)
+            sleep(0.05)
+
+    for k in range(20):
+        com_target[2] = com_target[2] + 0.01
+        q_new, dq = apply_qp(q, com_target)
+        q = q_new
+
+        pin.forwardKinematics(red_model, red_data, q)
+        pin.updateFramePlacements(red_model, red_data)
+        com_final = pin.centerOfMass(red_model, red_data, q)
+        lf_final = red_data.oMf[LF].translation
+        print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
+        if viz:
+            viz.display(q)
+            sleep(0.05)
