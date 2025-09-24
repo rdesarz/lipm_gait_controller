@@ -121,8 +121,6 @@ def apply_qp(q, com_target):
 
     # Compute errors
     e_com = com_target - com
-    e_rf6 = pin.log(red_data.oMf[RF].inverse() * oMf_rf0).vector
-    e_lf6 = pin.log(red_data.oMf[LF].inverse() * oMf_lf0).vector
 
     # Compute cost
     nv = red_model.nv
@@ -130,15 +128,11 @@ def apply_qp(q, com_target):
     g = - W_COM * (Jcom.T @ e_com) - W_TORSO * (A_torso.T @ (S @ e_rot))
 
     # Compute equality constraints
-    kc = 0.0
     Aeq = np.vstack([J_rf, J_lf])
-    beq = -kc * np.hstack([e_rf6, e_lf6])
-
-    H = 0.5 * (H + H.T)
+    beq = np.zeros((1,12))
 
     # Solve QP
     dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
-
 
     # Integrate to get next q
     q_next = pin.integrate(red_model, q, dq)
