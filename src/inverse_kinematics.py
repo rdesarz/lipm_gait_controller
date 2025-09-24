@@ -72,20 +72,21 @@ set_joint(q, "leg_left_1_joint", 0.0)
 set_joint(q, "leg_left_2_joint", 0.0)
 set_joint(q, "leg_left_3_joint", -0.5)
 set_joint(q, "leg_left_4_joint", 1.0)
-set_joint(q, "leg_left_5_joint", -0.5)
+set_joint(q, "leg_left_5_joint", -0.6)
 
 set_joint(q, "leg_right_1_joint", 0.0)
 set_joint(q, "leg_right_2_joint", 0.0)
 set_joint(q, "leg_right_3_joint", -0.5)
 set_joint(q, "leg_right_4_joint", 1.0)
-set_joint(q, "leg_right_5_joint", -0.5)
+set_joint(q, "leg_right_5_joint", -0.6)
 
 pin.forwardKinematics(red_model, red_data, q)
 pin.updateFramePlacements(red_model, red_data)
 oMf_rf0 = red_data.oMf[RF].copy()
 
-LF_POS_TARGET = red_data.oMf[LF].translation
-print(pin.centerOfMass(red_model, red_data, q))
+LF_POS_TARGET = np.array([0.6, 0.085,      -0.8])
+print(f"Initial center of mass position: {pin.centerOfMass(red_model, red_data, q)}")
+print(f"Initial left foot position: {red_data.oMf[LF].translation}")
 
 # -------------------- HQP step -------------------
 def hqp_step(q):
@@ -128,8 +129,8 @@ def hqp_step(q):
 
 
 # Single step of the QP
-# q_new, dq = hqp_step(q)
-# q = q_new
+q_new, dq = hqp_step(q)
+q = q_new
 
 # -------------------- Report --------------------
 pin.forwardKinematics(red_model, red_data, q)
