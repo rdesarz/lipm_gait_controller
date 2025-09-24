@@ -49,7 +49,7 @@ git clone https://github.com/rdesarz/lipm-walking-controller.git
 cd lipm-walking-controller
 pip install -r requirements.txt
 git clone https://github.com/stack-of-tasks/talos-data.git talos_data
-python src/inverse_kinematics.py
+python src/squat_inverse_kinematics.py
 ```
 
 ---
