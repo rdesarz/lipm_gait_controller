@@ -14,13 +14,9 @@ def set_joint(q, joint_name, val):
         q[full_model.joints[jid].idx_q] = val
 
 
-# World-frame targets
-LF_POS_TARGET = np.array([0.01705058, 0.085, -0.99621115])
-
 # Solver params
 ITERS = 200
 TOL_DQ = 1e-8
-W_LF = 10.0
 W_COM = 3.0
 W_TORSO = 10.0  # tune
 MU = 1e-6
@@ -93,6 +89,7 @@ set_joint(q, "leg_right_5_joint", -0.6)
 pin.forwardKinematics(red_model, red_data, q)
 pin.updateFramePlacements(red_model, red_data)
 oMf_rf0 = red_data.oMf[RF].copy()
+oMf_lf0 = red_data.oMf[LF].copy()
 
 print(f"Initial center of mass position: {pin.centerOfMass(red_model, red_data, q)}")
 print(f"Initial left foot position: {red_data.oMf[LF].translation}")
@@ -103,12 +100,12 @@ def apply_qp(q, com_target):
     pin.updateFramePlacements(red_model, red_data)
 
     com = pin.centerOfMass(red_model, red_data, q)
-    pin.computeCentroidalMap(red_model, red_data, q)
+    # pin.computeCentroidalMap(red_model, red_data, q)
     Jcom = pin.jacobianCenterOfMass(red_model, red_data, q)
 
     oMf_lf = red_data.oMf[LF]
     oMf_rf = red_data.oMf[RF]
-    J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RFREF)[:3, :]
+    J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RFREF)
     J_rf = pin.computeFrameJacobian(red_model, red_data, q, RF, RFREF)  # (6,nv)
 
     # --- torso upright constraint (roll=pitch=0, yaw free) ---
@@ -117,8 +114,8 @@ def apply_qp(q, com_target):
     # keep current yaw, zero roll/pitch target
     roll, pitch, yaw = Rotation.from_matrix(R).as_euler('xyz', degrees=False)
 
-    Rdes = Rotation.from_euler('xyz', [roll, pitch, yaw]).as_matrix()
-    e_rot = pin.log3(Rdes.T @ R)  # so3 error (3,)
+    Rdes = Rotation.from_euler('xyz', [0, 0, yaw]).as_matrix()
+    e_rot = pin.log3(R.T @ Rdes)  # so3 error (3,)
     S = np.array([[1.0, 0.0, 0.0],  # select roll,pitch only
                   [0.0, 1.0, 0.0]])
     e_torso = (S @ e_rot).reshape(-1)  # (2,)
@@ -128,18 +125,17 @@ def apply_qp(q, com_target):
     A_torso = S @ J_torso_ang  # (2,nv)
     b_torso = -e_torso  # A_torso dq = -e_torso
 
-    # --- existing tasks ---
-    e_lf = (LF_POS_TARGET - oMf_lf.translation)
+
     e_com = (com_target - com)
+    e_lf6 = pin.log(oMf_lf.inverse() * oMf_lf0).vector
     e_rf6 = pin.log(oMf_rf.inverse() * oMf_rf0).vector
     nv = red_model.nv
 
-    H = (W_LF * (J_lf.T @ J_lf)) + (W_COM * (Jcom.T @ Jcom)) + MU * np.eye(nv) + W_TORSO * (A_torso.T @ A_torso)
-    g = -(W_LF * (J_lf.T @ e_lf) + W_COM * (Jcom.T @ e_com)) + W_TORSO * (A_torso.T @ e_torso * -1.0)
+    H = (W_COM * (Jcom.T @ Jcom)) + MU * np.eye(nv) + W_TORSO * (A_torso.T @ A_torso)
+    g = -(W_COM * (Jcom.T @ e_com)) - W_TORSO * (A_torso.T @ e_torso * -1.0)
 
-    # stack equalities: right foot contact + torso upright
-    Aeq = J_rf
-    beq = -e_rf6
+    Aeq = np.vstack([J_rf, J_lf])
+    beq = np.hstack([-e_rf6, -e_lf6])
 
     dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
     q_next = pin.integrate(red_model, q, dq)
@@ -148,9 +144,8 @@ def apply_qp(q, com_target):
 
 # Implement a squat motion
 com_target = np.array([-0.02404194, 0.00122989, -0.12])
-for k in range(1):
+for k in range(10):
     com_target[2] = com_target[2] - 0.01
-    print(com_target)
     q_new, dq = apply_qp(q, com_target)
     q = q_new
 
@@ -158,8 +153,7 @@ for k in range(1):
     pin.updateFramePlacements(red_model, red_data)
     com_final = pin.centerOfMass(red_model, red_data, q)
     lf_final = red_data.oMf[LF].translation
-    # print(f"CoM final     : {com_final}  | err: {COM_TARGET - com_final}")
-    # print(f"Left foot pos : {lf_final}    | err: {LF_POS_TARGET - lf_final}")
+    print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
     if viz:
         viz.display(q)
-        sleep(0.1)
+        sleep(0.5)
