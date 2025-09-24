@@ -15,8 +15,7 @@ def set_joint(q, joint_name, val):
 
 
 # World-frame targets
-COM_TARGET = np.array([-0.02404194, 0.00122989, -0.150])
-LF_POS_TARGET = np.array([0.6, 0.085, -0.8])
+LF_POS_TARGET = np.array([0.01705058, 0.085, -0.99621115])
 
 # Solver params
 ITERS = 200
@@ -99,7 +98,7 @@ print(f"Initial center of mass position: {pin.centerOfMass(red_model, red_data, 
 print(f"Initial left foot position: {red_data.oMf[LF].translation}")
 
 
-def qp_step(q):
+def apply_qp(q, com_target):
     pin.forwardKinematics(red_model, red_data, q)
     pin.updateFramePlacements(red_model, red_data)
 
@@ -131,7 +130,7 @@ def qp_step(q):
 
     # --- existing tasks ---
     e_lf = (LF_POS_TARGET - oMf_lf.translation)
-    e_com = (COM_TARGET - com)
+    e_com = (com_target - com)
     e_rf6 = pin.log(oMf_rf.inverse() * oMf_rf0).vector
     nv = red_model.nv
 
@@ -147,16 +146,20 @@ def qp_step(q):
     return q_next, dq
 
 
-# Single step of the QP
-q_new, dq = qp_step(q)
-q = q_new
+# Implement a squat motion
+com_target = np.array([-0.02404194, 0.00122989, -0.12])
+for k in range(1):
+    com_target[2] = com_target[2] - 0.01
+    print(com_target)
+    q_new, dq = apply_qp(q, com_target)
+    q = q_new
 
-pin.forwardKinematics(red_model, red_data, q)
-pin.updateFramePlacements(red_model, red_data)
-com_final = pin.centerOfMass(red_model, red_data, q)
-lf_final = red_data.oMf[LF].translation
-print(f"CoM final     : {com_final}  | err: {COM_TARGET - com_final}")
-print(f"Left foot pos : {lf_final}    | err: {LF_POS_TARGET - lf_final}")
-if viz:
-    viz.display(q)
-    sleep(1.0)
+    pin.forwardKinematics(red_model, red_data, q)
+    pin.updateFramePlacements(red_model, red_data)
+    com_final = pin.centerOfMass(red_model, red_data, q)
+    lf_final = red_data.oMf[LF].translation
+    # print(f"CoM final     : {com_final}  | err: {COM_TARGET - com_final}")
+    # print(f"Left foot pos : {lf_final}    | err: {LF_POS_TARGET - lf_final}")
+    if viz:
+        viz.display(q)
+        sleep(0.1)
