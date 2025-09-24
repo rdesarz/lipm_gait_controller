@@ -19,6 +19,7 @@ ITERS = 200
 TOL_DQ = 1e-8
 W_COM = 3.0
 W_TORSO = 10.0  # tune
+W_FOOT = 10.0  # tune
 MU = 1e-6
 DQ_LIM = 0.5
 RFREF = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
@@ -89,13 +90,12 @@ set_joint(q, "leg_right_5_joint", -0.6)
 pin.forwardKinematics(red_model, red_data, q)
 pin.updateFramePlacements(red_model, red_data)
 oMf_rf0 = red_data.oMf[RF].copy()
-oMf_lf0 = red_data.oMf[LF].copy()
 
 print(f"Initial center of mass position: {pin.centerOfMass(red_model, red_data, q)}")
 print(f"Initial left foot position: {red_data.oMf[LF].translation}")
 
 
-def apply_qp(q, com_target):
+def apply_qp(q, com_target, lf_target):
     pin.forwardKinematics(red_model, red_data, q)
     pin.updateFramePlacements(red_model, red_data)
 
@@ -103,8 +103,11 @@ def apply_qp(q, com_target):
     Jcom = pin.jacobianCenterOfMass(red_model, red_data, q)
 
     RF_REF = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
-    J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RF_REF)
     J_rf = pin.computeFrameJacobian(red_model, red_data, q, RF, RF_REF)  # (6,nv)
+
+    J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RF_REF)
+    Jpos = J_lf[:3, :]  # take translation rows
+    e_lf3 = (red_data.oMf[LF].translation - lf_target)
 
     # --- torso upright constraint (roll=pitch=0, yaw free) ---
     R = red_data.oMf[TORSO].rotation
@@ -122,24 +125,17 @@ def apply_qp(q, com_target):
     # Compute errors
     e_com = com_target - com
     e_rf6 = pin.log(red_data.oMf[RF].inverse() * oMf_rf0).vector
-    e_lf6 = pin.log(red_data.oMf[LF].inverse() * oMf_lf0).vector
 
     # Compute cost
     nv = red_model.nv
     H = MU * np.eye(nv) + W_COM * (Jcom.T @ Jcom) + W_TORSO * (A_torso.T @ A_torso)
     g = - W_COM * (Jcom.T @ e_com) - W_TORSO * (A_torso.T @ (S @ e_rot))
 
-    w_pos, w_rot = 50.0, 10.0
-
-    Wsqrt = np.diag([np.sqrt(w_pos)] * 3 + [np.sqrt(w_rot)] * 3)
-    Kc6 = np.diag([Kc_pos] * 3 + [Kc_rot / ell] * 3)
-
-    # soft LF task
-    A_lf = Wsqrt @ J_lf
-    b_lf = Wsqrt @ (-Kc6 @ e_lf6)
-
+    s = np.sqrt(W_FOOT)
+    A_lf = s * Jpos
+    b_lf = s * e_lf3
     H += A_lf.T @ A_lf
-    g += -A_lf.T @ b_lf
+    g += A_lf.T @ b_lf
 
     # Compute equality constraints
     Aeq = J_rf
@@ -147,8 +143,6 @@ def apply_qp(q, com_target):
 
     # Solve QP
     dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
-
-
 
     # Integrate to get next q
     q_next = pin.integrate(red_model, q, dq)
@@ -158,32 +152,21 @@ def apply_qp(q, com_target):
 
 # Implement a squat motion
 com_target = pin.centerOfMass(red_model, red_data, q)
+lf_target = red_data.oMf[LF].translation
 
-for l in range(10):
-    for k in range(20):
-        com_target[2] = com_target[2] - 0.01
-        q_new, dq = apply_qp(q, com_target)
-        q = q_new
+for k in range(100):
+    lf_target[2] = lf_target[2] + 0.1
 
-        pin.forwardKinematics(red_model, red_data, q)
-        pin.updateFramePlacements(red_model, red_data)
-        com_final = pin.centerOfMass(red_model, red_data, q)
-        lf_final = red_data.oMf[LF].translation
-        print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
-        if viz:
-            viz.display(q)
-            sleep(0.05)
+    print(lf_target)
 
-    for k in range(20):
-        com_target[2] = com_target[2] + 0.01
-        q_new, dq = apply_qp(q, com_target)
-        q = q_new
+    q_new, dq = apply_qp(q, com_target, lf_target)
+    q = q_new
 
-        pin.forwardKinematics(red_model, red_data, q)
-        pin.updateFramePlacements(red_model, red_data)
-        com_final = pin.centerOfMass(red_model, red_data, q)
-        lf_final = red_data.oMf[LF].translation
-        print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
-        if viz:
-            viz.display(q)
-            sleep(0.05)
+    pin.forwardKinematics(red_model, red_data, q)
+    pin.updateFramePlacements(red_model, red_data)
+    com_final = pin.centerOfMass(red_model, red_data, q)
+    lf_final = red_data.oMf[LF].translation
+    print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
+    if viz:
+        viz.display(q)
+        sleep(0.05)
