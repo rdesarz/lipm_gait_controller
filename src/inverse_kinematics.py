@@ -1,17 +1,20 @@
-#!/usr/bin/env python3
-# HQP IK: hard contact on right foot, soft CoM + left foot position
-
-import os, sys, numpy as np, pinocchio as pin
+import os, sys
+import numpy as np
+import pinocchio as pin
 from time import sleep
 from pinocchio.visualize import MeshcatVisualizer
-from qpsolvers import solve_qp  # pip install qpsolvers osqp
+from qpsolvers import solve_qp
 
-# -------------------- Config --------------------
-PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
-URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")  # note: underscore
+
+def set_joint(q, joint_name, val):
+    jid = full_model.getJointId(joint_name)
+    if jid > 0 and full_model.joints[jid].nq == 1:
+        q[full_model.joints[jid].idx_q] = val
+
 
 # World-frame targets
-COM_TARGET = np.array([-0.02404194,  0.00122989, -0.150])
+COM_TARGET = np.array([-0.02404194, 0.00122989, -0.150])
+LF_POS_TARGET = np.array([0.6, 0.085, -0.8])
 
 # Solver params
 ITERS = 200
@@ -19,42 +22,41 @@ TOL_DQ = 1e-8
 W_LF = 10.0
 W_COM = 3.0
 MU = 1e-6
-DQ_LIM = 0.5  # rad/iter (box limits)
+DQ_LIM = 0.5
 RFREF = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
 
-# -------------------- Model & Viz --------------------
+# Load full model
+PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
+URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")
+
 if not os.path.isfile(URDF):
     print(f"URDF not found: {URDF}\nSet PKG_PARENT or clone talos_data.", file=sys.stderr)
     sys.exit(1)
 
 full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(URDF, PKG_PARENT, pin.JointModelFreeFlyer())
 
+# List joints
 for j_id, j_name in enumerate(full_model.names):
     print(j_id, j_name, full_model.joints[j_id].shortname())
 
 # Initialize the model position
 q = pin.neutral(full_model)
 
-# light knee flex to avoid singular straight legs
-def set_joint(q, joint_name, val):
-    jid = full_model.getJointId(joint_name)
-    if jid > 0 and full_model.joints[jid].nq == 1:
-        q[full_model.joints[jid].idx_q] = val
-
-# Place arms
+# Position the arms
 set_joint(q, "leg_left_4_joint", 0.0)
 set_joint(q, "leg_right_4_joint", 0.0)
 set_joint(q, "arm_right_4_joint", -1.2)
 set_joint(q, "arm_left_4_joint", -1.2)
 
+# We lock joints of the upper body
 joints_to_lock = [i for i in range(14, 48)]
 
 # Build reduced model
 red_model, red_geom = pin.buildReducedModel(full_model, full_col_model, joints_to_lock, q)
 _, red_vis = pin.buildReducedModel(full_model, full_vis_model, joints_to_lock, q)
-
 red_data = red_model.createData()
 
+# Initialize visualizer
 viz = MeshcatVisualizer(red_model, red_geom, red_vis)
 try:
     viz.initViewer(open=True)
@@ -65,6 +67,7 @@ except Exception:
 LF = red_model.getFrameId("left_sole_link")
 RF = red_model.getFrameId("right_sole_link")
 
+# Initialize reduced model
 q = pin.neutral(red_model)
 
 # Initialize legs position
@@ -84,12 +87,11 @@ pin.forwardKinematics(red_model, red_data, q)
 pin.updateFramePlacements(red_model, red_data)
 oMf_rf0 = red_data.oMf[RF].copy()
 
-LF_POS_TARGET = np.array([0.6, 0.085,      -0.8])
 print(f"Initial center of mass position: {pin.centerOfMass(red_model, red_data, q)}")
 print(f"Initial left foot position: {red_data.oMf[LF].translation}")
 
-# -------------------- HQP step -------------------
-def hqp_step(q):
+
+def qp_step(q):
     # Compute forward kinematics for the current configuration
     pin.forwardKinematics(red_model, red_data, q)
     pin.updateFramePlacements(red_model, red_data)
@@ -129,10 +131,9 @@ def hqp_step(q):
 
 
 # Single step of the QP
-q_new, dq = hqp_step(q)
+q_new, dq = qp_step(q)
 q = q_new
 
-# -------------------- Report --------------------
 pin.forwardKinematics(red_model, red_data, q)
 pin.updateFramePlacements(red_model, red_data)
 com_final = pin.centerOfMass(red_model, red_data, q)
