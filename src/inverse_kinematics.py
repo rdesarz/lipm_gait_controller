@@ -5,6 +5,8 @@ from time import sleep
 from pinocchio.visualize import MeshcatVisualizer
 from qpsolvers import solve_qp
 
+from scipy.spatial.transform import Rotation
+
 
 def set_joint(q, joint_name, val):
     jid = full_model.getJointId(joint_name)
@@ -21,6 +23,7 @@ ITERS = 200
 TOL_DQ = 1e-8
 W_LF = 10.0
 W_COM = 3.0
+W_TORSO = 10.0  # tune
 MU = 1e-6
 DQ_LIM = 0.5
 RFREF = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
@@ -38,6 +41,10 @@ full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(URDF, PKG_P
 # List joints
 for j_id, j_name in enumerate(full_model.names):
     print(j_id, j_name, full_model.joints[j_id].shortname())
+
+# List frames
+for i, frame in enumerate(full_model.frames):
+    print(i, frame.name, frame.parent, frame.type)
 
 # Initialize the model position
 q = pin.neutral(full_model)
@@ -66,6 +73,7 @@ except Exception:
 
 LF = red_model.getFrameId("left_sole_link")
 RF = red_model.getFrameId("right_sole_link")
+TORSO = red_model.getFrameId("torso_1_link")
 
 # Initialize reduced model
 q = pin.neutral(red_model)
@@ -92,41 +100,50 @@ print(f"Initial left foot position: {red_data.oMf[LF].translation}")
 
 
 def qp_step(q):
-    # Compute forward kinematics for the current configuration
     pin.forwardKinematics(red_model, red_data, q)
     pin.updateFramePlacements(red_model, red_data)
 
-    # Compute center of mass position as well as its Jacobian
     com = pin.centerOfMass(red_model, red_data, q)
-    pin.computeCentroidalMap(red_model, red_data, q)  # ensure Jcom validity
-    Jcom = pin.jacobianCenterOfMass(red_model, red_data, q)  # (3,nv)
+    pin.computeCentroidalMap(red_model, red_data, q)
+    Jcom = pin.jacobianCenterOfMass(red_model, red_data, q)
 
-    # Compute pose and Jacobian of the left and right foot
     oMf_lf = red_data.oMf[LF]
     oMf_rf = red_data.oMf[RF]
-    J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RFREF)[:3, :]  # (3,nv)
+    J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RFREF)[:3, :]
     J_rf = pin.computeFrameJacobian(red_model, red_data, q, RF, RFREF)  # (6,nv)
 
-    # Compute errors of positionning
-    e_lf = LF_POS_TARGET - oMf_lf.translation  # We want the left foot to match the desired target
-    e_com = COM_TARGET - com  # We want the CoM to match the desired target
-    e_rf6 = pin.log(oMf_rf.inverse() * oMf_rf0).vector
-    b_eq = -e_rf6  # J_rf dq = -e_rf6
+    # --- torso upright constraint (roll=pitch=0, yaw free) ---
+    oMf_torso = red_data.oMf[TORSO]
+    R = oMf_torso.rotation
+    # keep current yaw, zero roll/pitch target
+    roll, pitch, yaw = Rotation.from_matrix(R).as_euler('xyz', degrees=False)
 
+    Rdes = Rotation.from_euler('xyz', [roll, pitch, yaw]).as_matrix()
+    e_rot = pin.log3(Rdes.T @ R)  # so3 error (3,)
+    S = np.array([[1.0, 0.0, 0.0],  # select roll,pitch only
+                  [0.0, 1.0, 0.0]])
+    e_torso = (S @ e_rot).reshape(-1)  # (2,)
+
+    J_torso6 = pin.computeFrameJacobian(red_model, red_data, q, TORSO, RFREF)
+    J_torso_ang = J_torso6[3:6, :]  # (3,nv)
+    A_torso = S @ J_torso_ang  # (2,nv)
+    b_torso = -e_torso  # A_torso dq = -e_torso
+
+    # --- existing tasks ---
+    e_lf = (LF_POS_TARGET - oMf_lf.translation)
+    e_com = (COM_TARGET - com)
+    e_rf6 = pin.log(oMf_rf.inverse() * oMf_rf0).vector
     nv = red_model.nv
 
-    # Quadratic cost
-    H = (W_LF * (J_lf.T @ J_lf)) + (W_COM * (Jcom.T @ Jcom)) + MU * np.eye(nv)
-    g = -(W_LF * (J_lf.T @ e_lf) + W_COM * (Jcom.T @ e_com))
+    H = (W_LF * (J_lf.T @ J_lf)) + (W_COM * (Jcom.T @ Jcom)) + MU * np.eye(nv) + W_TORSO * (A_torso.T @ A_torso)
+    g = -(W_LF * (J_lf.T @ e_lf) + W_COM * (Jcom.T @ e_com)) + W_TORSO * (A_torso.T @ e_torso * -1.0)
 
-    # Equality: hard contact
-    Aeq, beq = J_rf, b_eq
+    # stack equalities: right foot contact + torso upright
+    Aeq = J_rf
+    beq = -e_rf6
 
-    # qpsolvers expects either (G,h) with x <= h or (lb <= A x <= ub). We'll use A and ub with no lb.
-    dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")  # returns None if infeasible
-
+    dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
     q_next = pin.integrate(red_model, q, dq)
-
     return q_next, dq
 
 
