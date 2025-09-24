@@ -158,7 +158,7 @@ for l in range(10):
         print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
         if viz:
             viz.display(q)
-            sleep(1.0)
+            sleep(0.05)
 
     for k in range(20):
         com_target[2] = com_target[2] + 0.01
@@ -172,4 +172,4 @@ for l in range(10):
         print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
         if viz:
             viz.display(q)
-            sleep(1.0)
+            sleep(0.05)
