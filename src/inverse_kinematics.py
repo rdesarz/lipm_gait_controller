@@ -32,7 +32,7 @@ full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(URDF, PKG_P
 for j_id, j_name in enumerate(full_model.names):
     print(j_id, j_name, full_model.joints[j_id].shortname())
 
-# -------------------- Seed --------------------
+# Initialize the model position
 q = pin.neutral(full_model)
 
 # light knee flex to avoid singular straight legs
@@ -41,6 +41,7 @@ def set_joint(q, joint_name, val):
     if jid > 0 and full_model.joints[jid].nq == 1:
         q[full_model.joints[jid].idx_q] = val
 
+# Place arms
 set_joint(q, "leg_left_4_joint", 0.0)
 set_joint(q, "leg_right_4_joint", 0.0)
 set_joint(q, "arm_right_4_joint", -1.2)
@@ -65,6 +66,19 @@ LF = red_model.getFrameId("left_sole_link")
 RF = red_model.getFrameId("right_sole_link")
 
 q = pin.neutral(red_model)
+
+# Initialize legs position
+set_joint(q, "leg_left_1_joint", 0.0)
+set_joint(q, "leg_left_2_joint", 0.0)
+set_joint(q, "leg_left_3_joint", -0.5)
+set_joint(q, "leg_left_4_joint", 1.0)
+set_joint(q, "leg_left_5_joint", -0.5)
+
+set_joint(q, "leg_right_1_joint", 0.0)
+set_joint(q, "leg_right_2_joint", 0.0)
+set_joint(q, "leg_right_3_joint", -0.5)
+set_joint(q, "leg_right_4_joint", 1.0)
+set_joint(q, "leg_right_5_joint", -0.5)
 
 pin.forwardKinematics(red_model, red_data, q)
 pin.updateFramePlacements(red_model, red_data)
@@ -114,8 +128,8 @@ def hqp_step(q):
 
 
 # Single step of the QP
-q_new, dq = hqp_step(q)
-q = q_new
+# q_new, dq = hqp_step(q)
+# q = q_new
 
 # -------------------- Report --------------------
 pin.forwardKinematics(red_model, red_data, q)
