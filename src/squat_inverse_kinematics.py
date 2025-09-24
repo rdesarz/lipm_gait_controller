@@ -121,6 +121,8 @@ def apply_qp(q, com_target):
 
     # Compute errors
     e_com = com_target - com
+    e_rf6 = pin.log(red_data.oMf[RF].inverse() * oMf_rf0).vector
+    e_lf6 = pin.log(red_data.oMf[LF].inverse() * oMf_lf0).vector
 
     # Compute cost
     nv = red_model.nv
@@ -129,7 +131,7 @@ def apply_qp(q, com_target):
 
     # Compute equality constraints
     Aeq = np.vstack([J_rf, J_lf])
-    beq = np.zeros((1,12))
+    beq = np.hstack([e_rf6, e_lf6])
 
     # Solve QP
     dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
@@ -156,7 +158,7 @@ for l in range(10):
         print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
         if viz:
             viz.display(q)
-            sleep(0.05)
+            sleep(1.0)
 
     for k in range(20):
         com_target[2] = com_target[2] + 0.01
@@ -170,4 +172,4 @@ for l in range(10):
         print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
         if viz:
             viz.display(q)
-            sleep(0.05)
+            sleep(1.0)
