@@ -93,7 +93,7 @@ def clamp_to_polygon(u_xy, poly: Polygon):
     return np.array([q.x, q.y])
 
 
-def compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot):
+def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot):
     # The sequence is the following:
     # Start with a double support phase to switch CoM on right foot
     # Then n_steps, for each step there is a single support phase and a double support phase. The length of the step is
@@ -114,6 +114,14 @@ def compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_s
     rf_path[mask, :] = rf_initial_pose
     lf_path[mask, :] = lf_initial_pose
 
+    steps_pose = np.zeros((n_steps + 3, 2))
+    steps_pose[0] = rf_initial_pose[0:2]
+    for i in range(1, n_steps + 1):
+        sign = -1.0 if i % 2 == 0 else 1.0
+        steps_pose[i] = np.array([i * l_stride, sign * math.fabs(lf_initial_pose[1])])
+
+    print(steps_pose)
+
     # Compute motion of left foot
     for k in range(0, n_steps, 2):
         t_begin = t_ds + k * (t_ss + t_ds)
@@ -127,14 +135,13 @@ def compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_s
 
         # Compute motion on x-axis
         alpha = sub_time / t_ss
-        lf_path[mask, 0] = (1 - alpha) * lf_path[mask, 0][0] + alpha * (lf_path[mask, 0][0] + l_stride)
-        last_element = lf_path[mask, 0][-1]
+        lf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[k][0]
 
-        # Add constant part till the next step
-        t_begin = t_ds + k * (t_ss + t_ds) + t_ss
-        t_end = t_ds + t_ss + t_ds + dt + k + 1 * (t_ss + t_ds)
-        mask = (t >= t_begin) & (t < t_end)
-        lf_path[mask, 0] = last_element
+        # # Add constant part till the next step
+        # t_begin = t_ds + k * (t_ss + t_ds) + t_ss
+        # t_end = t_ds + t_ss + t_ds + dt + k + 1 * (t_ss + t_ds)
+        # mask = (t >= t_begin) & (t < t_end)
+        # lf_path[mask, 0] = last_element
 
     # Compute motion of right foot
     for k in range(1, n_steps + 1, 2):
@@ -158,7 +165,7 @@ def compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_s
         mask = (t >= t_begin) & (t < t_end)
         rf_path[mask, 0] = last_element
 
-    return t, lf_path, rf_path
+    return t, lf_path, rf_path, steps_pose
 
 if __name__ == "__main__":
     # Parameters
@@ -182,10 +189,6 @@ if __name__ == "__main__":
     lf_initial_pose = np.array([0.0, 0.1, 0.0])
     rf_initial_pose = np.array([0.0, -0.1, 0.0])
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
-    steps_pose = np.array([[0.0, -0.1],
-                           [0.3, 0.1],
-                           [0.6, -0.1],
-                           [0.9, 0.1]])
     n_steps = 3
     l_stride = 0.3
     max_height_foot = 0.2
@@ -193,7 +196,7 @@ if __name__ == "__main__":
     # Build ZMP reference to track
     # t, zmp_ref = compute_zmp_ref(com_initial_pose, steps_pose, dt, t_ss, t_ds)
 
-    t, lf_path, rf_path = compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot)
+    t, lf_path, rf_path, steps_pose = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot)
 
     # Figure
     fig, axes = plt.subplots(2, 2, layout="constrained", figsize=(12,8))
