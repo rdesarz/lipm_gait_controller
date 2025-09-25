@@ -93,18 +93,30 @@ def clamp_to_polygon(u_xy, poly: Polygon):
     return np.array([q.x, q.y])
 
 
-def compute_feet_path(t, rf_initial_pose, lf_inital_pose, n_steps, t_ss, t_ds, l_stride):
+def compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt):
     # The sequence is the following:
     # Start with a double support phase to switch CoM on right foot
     # Then n_steps, for each step there is a single support phase and a double support phase. The length of the step is
     # given by l_stride.
     # At the last step, we add a single support step to join both feet at the same level and a double support step to
     # place the CoM in the middle of the feet
-    T = len(t)
+
+    total_time = t_ds + (n_steps + 1) * (t_ss + t_ds)
+    N = int(total_time / dt)
+    t = np.arange(N) * dt
 
     # Initialize path
-    rf_path = np.zeros([T, 3])
-    lf_path = np.zeros([T, 3])
+    rf_path = np.zeros([N, 3])
+    lf_path = np.zeros([N, 3])
+
+    # Switch of the CoM to the right foot implies both feet stays at the same position
+    mask = t < t_ds
+    rf_path[mask, :] = rf_initial_pose
+    lf_path[mask, :] = lf_initial_pose
+
+    #
+    mask = (t >= t_ds) & (t < t_ds + t_ss)
+    lf_path[mask, :] = lf_initial_pose
 
     return t, lf_path, rf_path
 
@@ -127,25 +139,20 @@ if __name__ == "__main__":
     t_ss = 1.0  # Single support phase time window
     t_ds = 0.2  # Double support phase time window
     com_initial_pose = np.array([0.0, 0.0])
-    lf_initial_pose = np.array([0.0, 0.1])
-    rf_initial_pose = np.array([0.0, -0.1])
+    lf_initial_pose = np.array([0.0, 0.1, 0.0])
+    rf_initial_pose = np.array([0.0, -0.1, 0.0])
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
     steps_pose = np.array([[0.0, -0.1],
                            [0.3, 0.1],
                            [0.6, -0.1],
                            [0.9, 0.1]])
-
-    # Applied force parameters
-    m = 60.0  # kg
-    Fx, Fy = 0.0, 0.0  # N
-    tau = 0.3  # s duration
-    n_push = int(tau / dt)
-    k_push = int((t_ss + 0.5 * t_ds) / dt)  # mid-DS of first pair
+    n_steps = 3
+    l_stride = 0.3
 
     # Build ZMP reference to track
-    t, zmp_ref = compute_zmp_ref(com_initial_pose, steps_pose, dt, t_ss, t_ds)
+    # t, zmp_ref = compute_zmp_ref(com_initial_pose, steps_pose, dt, t_ss, t_ds)
 
-    lf_path, rf_path = compute_feet_path(t, lf_initial_pose, rf_initial_pose)
+    t, lf_path, rf_path = compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt)
 
     # Figure
     fig, axes = plt.subplots(2, 2, layout="constrained", figsize=(12,8))
@@ -160,7 +167,7 @@ if __name__ == "__main__":
     axes[0, 0].set_title("Feet trajectories")
 
     # Plot ZMP reference vs COM on the x axis
-    axes[0, 1].plot(t, zmp_ref[:, 0], label='ZMP reference [x]')
+    # axes[0, 1].plot(t, zmp_ref[:, 0], label='ZMP reference [x]')
     axes[0, 1].plot(t, lf_path[:, 2], label='Left foot trajectory')
     axes[0, 1].plot(t, rf_path[:, 2], label='Right foot trajectory')
     axes[0, 1].grid(True)
@@ -170,7 +177,7 @@ if __name__ == "__main__":
     axes[0, 1].set_title("Feet and ZMP reference on z axis")
 
     # Plot ZMP reference vs COM on the y axis
-    axes[1, 1].plot(t, zmp_ref[:, 1], label='ZMP reference [y]')
+    # axes[1, 1].plot(t, zmp_ref[:, 1], label='ZMP reference [y]')
     axes[1, 1].grid(True)
     axes[1, 1].legend()
     axes[1, 1].set_xlabel("time [s]")
