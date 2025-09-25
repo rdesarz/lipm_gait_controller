@@ -115,9 +115,48 @@ def compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_s
     lf_path[mask, :] = lf_initial_pose
 
     # Compute motion of left foot
-    mask = (t >= t_ds) & (t < t_ss + t_ds)
-    theta = (t[mask] - t_ds) * math.pi / t_ss
-    lf_path[mask, 0] = np.sin(theta) * max_height_foot
+    for k in range(0, n_steps, 2):
+        t_begin = t_ds + k * (t_ss + t_ds)
+        t_end = t_ds + k * (t_ss + t_ds) + t_ss
+        mask = (t >= t_begin) & (t < t_end)
+        sub_time = t[mask] - (t_ds + k * (t_ss + t_ds))
+
+        # Compute motion on z-axis
+        theta = sub_time * math.pi / t_ss
+        lf_path[mask, 2] = np.sin(theta) * max_height_foot
+
+        # Compute motion on x-axis
+        alpha = sub_time / t_ss
+        lf_path[mask, 0] = (1 - alpha) * lf_path[mask, 0][0] + alpha * (lf_path[mask, 0][0] + l_stride)
+        last_element = lf_path[mask, 0][-1]
+
+        # Add constant part till the next step
+        t_begin = t_ds + k * (t_ss + t_ds) + t_ss
+        t_end = t_ds + t_ss + t_ds + dt + k + 1 * (t_ss + t_ds)
+        mask = (t >= t_begin) & (t < t_end)
+        lf_path[mask, 0] = last_element
+
+    # Compute motion of right foot
+    for k in range(1, n_steps + 1, 2):
+        t_begin = t_ds + k * (t_ss + t_ds)
+        t_end = t_ds + k * (t_ss + t_ds) + t_ss
+        mask = (t > t_begin) & (t < t_end)
+        sub_time = t[mask] - (t_ds + k * (t_ss + t_ds))
+
+        # Compute motion on z-axis
+        theta = sub_time * math.pi / t_ss
+        rf_path[mask, 2] = np.sin(theta) * max_height_foot
+
+        # Compute motion on x-axis
+        alpha = sub_time / t_ss
+        rf_path[mask, 0] = (1 - alpha) * rf_path[mask, 0][0] + alpha * (rf_path[mask, 0][0] + l_stride)
+        last_element = rf_path[mask, 0][-1]
+
+        # Add constant part till the next step
+        t_begin = t_ds + k * (t_ss + t_ds) + t_ss
+        t_end = t_ds + t_ss + t_ds + dt + dt + k + 1 * (t_ss + t_ds)
+        mask = (t >= t_begin) & (t < t_end)
+        rf_path[mask, 0] = last_element
 
     return t, lf_path, rf_path
 
