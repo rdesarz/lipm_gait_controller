@@ -93,7 +93,7 @@ def clamp_to_polygon(u_xy, poly: Polygon):
     return np.array([q.x, q.y])
 
 
-def compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt):
+def compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot):
     # The sequence is the following:
     # Start with a double support phase to switch CoM on right foot
     # Then n_steps, for each step there is a single support phase and a double support phase. The length of the step is
@@ -114,9 +114,10 @@ def compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_s
     rf_path[mask, :] = rf_initial_pose
     lf_path[mask, :] = lf_initial_pose
 
-    #
-    mask = (t >= t_ds) & (t < t_ds + t_ss)
-    lf_path[mask, :] = lf_initial_pose
+    # Compute motion of left foot
+    mask = (t >= t_ds) & (t < t_ss + t_ds)
+    theta = (t[mask] - t_ds) * math.pi / t_ss
+    lf_path[mask, 0] = np.sin(theta) * max_height_foot
 
     return t, lf_path, rf_path
 
@@ -148,11 +149,12 @@ if __name__ == "__main__":
                            [0.9, 0.1]])
     n_steps = 3
     l_stride = 0.3
+    max_height_foot = 0.2
 
     # Build ZMP reference to track
     # t, zmp_ref = compute_zmp_ref(com_initial_pose, steps_pose, dt, t_ss, t_ds)
 
-    t, lf_path, rf_path = compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt)
+    t, lf_path, rf_path = compute_feet_path(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot)
 
     # Figure
     fig, axes = plt.subplots(2, 2, layout="constrained", figsize=(12,8))
@@ -168,8 +170,8 @@ if __name__ == "__main__":
 
     # Plot ZMP reference vs COM on the x axis
     # axes[0, 1].plot(t, zmp_ref[:, 0], label='ZMP reference [x]')
-    axes[0, 1].plot(t, lf_path[:, 2], label='Left foot trajectory')
-    axes[0, 1].plot(t, rf_path[:, 2], label='Right foot trajectory')
+    axes[0, 1].plot(t, lf_path[:, 0], label='Left foot trajectory')
+    axes[0, 1].plot(t, rf_path[:, 0], label='Right foot trajectory')
     axes[0, 1].grid(True)
     axes[0, 1].legend()
     axes[0, 1].set_xlabel("t [s]")
