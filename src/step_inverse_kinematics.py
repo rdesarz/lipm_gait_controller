@@ -95,7 +95,7 @@ print(f"Initial center of mass position: {pin.centerOfMass(red_model, red_data, 
 print(f"Initial left foot position: {red_data.oMf[LF].translation}")
 
 
-def apply_qp(q, com_target, lf_target):
+def apply_qp(q, com_target, foot_target):
     pin.forwardKinematics(red_model, red_data, q)
     pin.updateFramePlacements(red_model, red_data)
 
@@ -107,7 +107,7 @@ def apply_qp(q, com_target, lf_target):
 
     J_lf = pin.computeFrameJacobian(red_model, red_data, q, LF, RF_REF)
     Jpos = J_lf[:3, :]  # take translation rows
-    e_lf3 = (red_data.oMf[LF].translation - lf_target)
+    e_lf3 = (red_data.oMf[LF].translation - foot_target)
 
     # --- torso upright constraint (roll=pitch=0, yaw free) ---
     R = red_data.oMf[TORSO].rotation
@@ -152,10 +152,10 @@ def apply_qp(q, com_target, lf_target):
 
 # Implement a squat motion
 com_target = pin.centerOfMass(red_model, red_data, q)
-lf_target = red_data.oMf[LF].translation
+lf_target = red_data.oMf[LF].translation.copy()
 
-for k in range(100):
-    lf_target[2] = lf_target[2] + 0.1
+for k in range(20):
+    lf_target[2] = lf_target[2] + 0.01
 
     print(lf_target)
 
