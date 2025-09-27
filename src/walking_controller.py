@@ -2,8 +2,6 @@ import math
 
 import numpy as np
 from matplotlib import pyplot as plt
-import imageio.v2 as imageio
-from matplotlib.widgets import Cursor
 from shapely import Polygon, Point, affinity, union
 from shapely.ops import nearest_points
 from scipy.linalg import solve_discrete_are
