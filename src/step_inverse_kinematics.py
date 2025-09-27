@@ -93,9 +93,6 @@ set_joint(q, "leg_right_5_joint", -0.6)
 pin.forwardKinematics(red_model, red_data, q)
 pin.updateFramePlacements(red_model, red_data)
 
-print(f"Initial center of mass position: {pin.centerOfMass(red_model, red_data, q)}")
-print(f"Initial left foot position: {red_data.oMf[LF].translation}")
-
 @dataclass
 class QPParams:
     fixed_foot_frame: str
@@ -163,20 +160,79 @@ def apply_qp(q, com_target, foot_target, params: QPParams):
 
 # Implement a squat motion
 com_target = pin.centerOfMass(red_model, red_data, q)
-params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model, data=red_data)
-moving_foot_pos = red_data.oMf[params.moving_foot_frame].translation.copy()
 
-for k in range(20):
-    moving_foot_pos[2] = moving_foot_pos[2] + 0.01
+dl_com = 0.001
 
-    q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
-    q = q_new
+for l in range(3):
+    for k in range(20):
+        params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model, data=red_data)
+        moving_foot_pos = red_data.oMf[params.moving_foot_frame].translation.copy()
 
-    pin.forwardKinematics(red_model, red_data, q)
-    pin.updateFramePlacements(red_model, red_data)
-    com_final = pin.centerOfMass(red_model, red_data, q)
-    lf_final = red_data.oMf[LF].translation
-    print(f"CoM final     : {com_final}  | err: {com_target - com_final}")
-    if viz:
-        viz.display(q)
-        sleep(0.05)
+        com_target[0] = com_target[0] + dl_com
+        moving_foot_pos[0] = moving_foot_pos[0] + dl_com
+        moving_foot_pos[2] = moving_foot_pos[2] + 0.01
+
+        q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+        q = q_new
+
+        pin.forwardKinematics(red_model, red_data, q)
+        pin.updateFramePlacements(red_model, red_data)
+        com_final = pin.centerOfMass(red_model, red_data, q)
+        lf_final = red_data.oMf[LF].translation
+        if viz:
+            viz.display(q)
+            sleep(0.05)
+
+    for k in range(20):
+        com_target[0] = com_target[0] + dl_com
+        moving_foot_pos[0] = moving_foot_pos[0] + dl_com
+
+        moving_foot_pos[2] = moving_foot_pos[2] - 0.01
+
+        q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+        q = q_new
+
+        pin.forwardKinematics(red_model, red_data, q)
+        pin.updateFramePlacements(red_model, red_data)
+        com_final = pin.centerOfMass(red_model, red_data, q)
+        lf_final = red_data.oMf[LF].translation
+        if viz:
+            viz.display(q)
+            sleep(0.05)
+
+    params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model, data=red_data)
+    moving_foot_pos = red_data.oMf[params.moving_foot_frame].translation.copy()
+
+    for k in range(20):
+        com_target[0] = com_target[0] + dl_com
+        moving_foot_pos[0] = moving_foot_pos[0] + dl_com
+
+        moving_foot_pos[2] = moving_foot_pos[2] + 0.01
+
+        q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+        q = q_new
+
+        pin.forwardKinematics(red_model, red_data, q)
+        pin.updateFramePlacements(red_model, red_data)
+        com_final = pin.centerOfMass(red_model, red_data, q)
+        lf_final = red_data.oMf[LF].translation
+        if viz:
+            viz.display(q)
+            sleep(0.05)
+
+    for k in range(20):
+        com_target[0] = com_target[0] + dl_com
+        moving_foot_pos[0] = moving_foot_pos[0] + dl_com
+
+        moving_foot_pos[2] = moving_foot_pos[2] - 0.01
+
+        q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+        q = q_new
+
+        pin.forwardKinematics(red_model, red_data, q)
+        pin.updateFramePlacements(red_model, red_data)
+        com_final = pin.centerOfMass(red_model, red_data, q)
+        lf_final = red_data.oMf[LF].translation
+        if viz:
+            viz.display(q)
+            sleep(0.05)
