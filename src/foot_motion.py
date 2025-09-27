@@ -114,11 +114,16 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
     rf_path[mask, :] = rf_initial_pose
     lf_path[mask, :] = lf_initial_pose
 
-    steps_pose = np.zeros((n_steps + 3, 2))
+    steps_pose = np.zeros((n_steps + 2, 2))
     steps_pose[0] = rf_initial_pose[0:2]
     for i in range(1, n_steps + 1):
         sign = -1.0 if i % 2 == 0 else 1.0
         steps_pose[i] = np.array([i * l_stride, sign * math.fabs(lf_initial_pose[1])])
+
+    # Add a last step to have both feet at the same level
+    steps_pose[-1] = steps_pose[-2]
+    steps_pose[-1][1] = steps_pose[-1][1] * -1.0
+
 
     print(steps_pose)
 
@@ -190,7 +195,7 @@ if __name__ == "__main__":
     rf_initial_pose = np.array([0.0, -0.1, 0.0])
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
     n_steps = 3
-    l_stride = 0.3
+    l_stride = 0.2
     max_height_foot = 0.2
 
     # Build ZMP reference to track
