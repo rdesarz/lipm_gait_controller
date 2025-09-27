@@ -3,6 +3,7 @@ import math
 import numpy as np
 from matplotlib import pyplot as plt
 import imageio.v2 as imageio
+from matplotlib.widgets import Cursor
 from shapely import Polygon, Point, affinity, union
 from shapely.ops import nearest_points
 from scipy.linalg import solve_discrete_are
@@ -200,6 +201,8 @@ if __name__ == "__main__":
     l_stride = 0.1
     max_height_foot = 0.2
 
+    enable_live_plot = False
+
     # Applied force parameters
     m = 60.0  # kg
     Fx, Fy = 0.0, 0.0  # N
@@ -267,7 +270,6 @@ if __name__ == "__main__":
     fig, axes = plt.subplots(3, 2, layout="constrained", figsize=(12,8))
 
     ax_live_plot = axes[0, 0]
-    ax_live_plot.axis('equal')
     ax_live_plot.grid(True)
     ax_live_plot.legend()
     ax_live_plot.set_xlabel("x pos [m]")
@@ -299,22 +301,18 @@ if __name__ == "__main__":
     axes[1, 0].set_ylabel("preview gain [-]")
     axes[1, 0].set_title("Preview Gains")
 
-    lf_x_traj_line, = axes[2, 0].plot([], [], label='Left foot trajectory')
-    rf_x_traj_line, = axes[2, 0].plot([], [], label='Right foot trajectory')
+    lf_x_traj_line, = axes[2, 0].plot(t, lf_path[:, 0], label='Left foot trajectory')
+    rf_x_traj_line, = axes[2, 0].plot(t, rf_path[:, 0], label='Right foot trajectory')
     axes[2, 0].grid(True)
     axes[2, 0].legend()
-    axes[2, 0].set_xlim((np.min(t), np.max(t)))
-    axes[2, 0].set_ylim((np.min(lf_path[:, 0]), np.max(lf_path[:, 0])))
     axes[2, 0].set_xlabel("t [s]")
     axes[2, 0].set_ylabel("z pos [m]")
     axes[2, 0].set_title("Feet trajectories on z axis")
 
-    lf_z_traj_line, = axes[2, 1].plot([], [], label='Left foot trajectory')
-    rf_z_traj_line, = axes[2, 1].plot([], [], label='Right foot trajectory')
+    lf_z_traj_line, = axes[2, 1].plot(t, lf_path[:, 2], label='Left foot trajectory')
+    rf_z_traj_line, = axes[2, 1].plot(t, rf_path[:, 2], label='Right foot trajectory')
     axes[2, 1].grid(True)
     axes[2, 1].legend()
-    axes[2, 1].set_xlim((np.min(t), np.max(t)))
-    axes[2, 1].set_ylim((np.min(lf_path[:, 2]), np.max(lf_path[:, 2])))
     axes[2, 1].set_xlabel("t [s]")
     axes[2, 1].set_ylabel("x pos [m]")
     axes[2, 1].set_title("Feet trajectories on x axis")
@@ -373,7 +371,7 @@ if __name__ == "__main__":
         com_arr = np.asarray(com_xy_hist)
         zmp_arr = np.asarray(zmp_xy_hist)
 
-        if k % draw_every == 0:
+        if k % draw_every == 0 and enable_live_plot:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
             com_ref_x_line.set_data(t[0:k + 1], com_arr[:, 0])
             com_ref_y_line.set_data(t[0:k + 1], com_arr[:, 1])
@@ -402,3 +400,12 @@ if __name__ == "__main__":
 
     # Uncomment to save the plot
     # imageio.mimsave("img/traj.gif", frames[2:], fps=int(1/update_frequency * 2), loop=10) # Save at frame divided by 2
+
+    if not enable_live_plot:
+        com_arr = np.asarray(com_xy_hist)
+
+        com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
+        com_ref_x_line.set_data(t, com_arr[:, 0])
+        com_ref_y_line.set_data(t, com_arr[:, 1])
+
+        plt.show()
