@@ -1,4 +1,6 @@
 import math
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -95,6 +97,73 @@ def clamp_to_polygon(u_xy, poly: Polygon):
     q = nearest_points(poly.exterior, p)[0]
 
     return np.array([q.x, q.y])
+
+@dataclass
+class QPParams:
+    fixed_foot_frame: str
+    moving_foot_frame: str
+    torso_frame: str
+    model: pin.Model
+    data: Any
+    w_torso: float
+    mu: float
+    w_com: float
+
+def apply_qp(q, com_target, foot_target, params: QPParams):
+    # Compute the frame placements based on the input configuration
+    pin.forwardKinematics(params.model, params.data, q)
+    pin.updateFramePlacements(params.model, params.data)
+
+    com = pin.centerOfMass(params.model, params.data, q)
+    Jcom = pin.jacobianCenterOfMass(params.model, params.data, q)
+
+    oMf_ff0 = red_data.oMf[params.fixed_foot_frame].copy()
+
+    RF_REF = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
+    J_ff = pin.computeFrameJacobian(params.model, params.data, q, params.fixed_foot_frame, RF_REF)
+    J_mf = pin.computeFrameJacobian(params.model, params.data, q, params.moving_foot_frame, RF_REF)
+    Jpos = J_mf[:3, :]  # take translation rows
+    e_mf3 = (params.data.oMf[params.moving_foot_frame].translation - foot_target)
+
+    R = params.data.oMf[params.torso_frame].rotation
+    roll, pitch, yaw = Rotation.from_matrix(R).as_euler('xyz', degrees=False)
+    Rdes = Rotation.from_euler('xyz', [0, 0, yaw]).as_matrix()
+    e_rot = pin.log3(R.T @ Rdes)  # so3 error (3,)
+
+    S = np.array([[1.0, 0.0, 0.0],  # select roll,pitch only
+                  [0.0, 1.0, 0.0]])
+
+    J_torso6 = pin.computeFrameJacobian(params.model, params.data, q, params.torso_frame, RF_REF)
+    J_torso_ang = J_torso6[3:6, :]  # (3,nv)
+    A_torso = S @ J_torso_ang  # (2,nv)
+
+    # Compute errors
+    e_com = com_target - com
+    e_ff6 = pin.log(params.data.oMf[params.fixed_foot_frame].inverse() * oMf_ff0).vector
+
+    # Compute cost
+    nv = params.model.nv
+    H = params.mu * np.eye(nv) + params.w_com * (Jcom.T @ Jcom) + params.w_torso * (A_torso.T @ A_torso)
+    g = - params.w_com * (Jcom.T @ e_com) - params.w_torso * (A_torso.T @ (S @ e_rot))
+
+    # Add foot cost
+    s = np.sqrt(params.w_com)
+    A_mf = s * Jpos
+    b_mf = s * e_mf3
+    H += A_mf.T @ A_mf
+    g += A_mf.T @ b_mf
+
+    # Compute equality constraints
+    Aeq = J_ff
+    beq = e_ff6
+
+    # Solve QP
+    dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
+
+    # Integrate to get next q
+    q_next = pin.integrate(params.model, q, dq)
+
+    return q_next, dq
 
 def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot):
     # The sequence is the following:
@@ -353,16 +422,6 @@ if __name__ == "__main__":
         jid = full_model.getJointId(joint_name)
         if jid > 0 and full_model.joints[jid].nq == 1:
             q[full_model.joints[jid].idx_q] = val
-
-
-    # Solver params
-    ITERS = 200
-    TOL_DQ = 1e-8
-    W_COM = 3.0
-    W_TORSO = 10.0  # tune
-    MU = 1e-6
-    DQ_LIM = 0.5
-    RFREF = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
 
     # Load full model
     PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
