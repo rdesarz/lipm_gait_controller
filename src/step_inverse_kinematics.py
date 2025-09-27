@@ -118,7 +118,7 @@ def apply_qp(q, com_target, foot_target, params: QPParams):
     J_ff = pin.computeFrameJacobian(params.model, params.data, q, params.fixed_foot_frame, RF_REF)
     J_mf = pin.computeFrameJacobian(params.model, params.data, q, params.moving_foot_frame, RF_REF)
     Jpos = J_mf[:3, :]  # take translation rows
-    e_mf3 = (params.data.oMf[LF].translation - foot_target)
+    e_mf3 = (params.data.oMf[params.moving_foot_frame].translation - foot_target)
 
     R = params.data.oMf[params.torso_frame].rotation
     roll, pitch, yaw = Rotation.from_matrix(R).as_euler('xyz', degrees=False)
