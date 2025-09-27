@@ -2,16 +2,12 @@ import math
 
 import numpy as np
 from matplotlib import pyplot as plt
-import imageio.v2 as imageio
 from shapely import Polygon, Point, affinity, union
 from shapely.ops import nearest_points
-from scipy.linalg import solve_discrete_are
 
 
-def compute_zmp_ref(com_initial_pose, steps, dt, ss_t, ds_t):
-    T = int((len(steps) - 1) * (ss_t + ds_t) / dt + (ds_t + ss_t) / dt)
-
-    t = np.arange(T) * dt
+def compute_zmp_ref(t, com_initial_pose, steps, ss_t, ds_t):
+    T = len(t)
     zmp_ref = np.zeros([T, 2])
 
     # Step on the first foot
@@ -36,7 +32,7 @@ def compute_zmp_ref(com_initial_pose, steps, dt, ss_t, ds_t):
     mask = t >= ds_t + (len(steps) - 1) * (ss_t + ds_t)
     zmp_ref[mask, :] = steps[-1]
 
-    return t, zmp_ref
+    return zmp_ref
 
 
 def compute_double_support_polygon(current_foot_pose, next_foot_pose, foot_shape):
@@ -124,9 +120,6 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
     steps_pose[-1] = steps_pose[-2]
     steps_pose[-1][1] = steps_pose[-1][1] * -1.0
 
-
-    print(steps_pose)
-
     # Compute motion of left foot
     for k in range(0, n_steps, 2):
         t_begin = t_ds + k * (t_ss + t_ds)
@@ -139,14 +132,18 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         lf_path[mask, 2] = np.sin(theta) * max_height_foot
 
         # Compute motion on x-axis
-        alpha = sub_time / t_ss
-        lf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[k][0]
+        if k == 0:
+            alpha = sub_time / t_ss
+            lf_path[mask, 0] = alpha * steps_pose[k + 1][0]
+        else:
+            alpha = sub_time / t_ss
+            lf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[k + 1][0]
 
         # # Add constant part till the next step
-        # t_begin = t_ds + k * (t_ss + t_ds) + t_ss
-        # t_end = t_ds + t_ss + t_ds + dt + k + 1 * (t_ss + t_ds)
-        # mask = (t >= t_begin) & (t < t_end)
-        # lf_path[mask, 0] = last_element
+        t_begin = t_ds + k * (t_ss + t_ds) + t_ss
+        t_end = total_time
+        mask = (t >= t_begin) & (t < t_end)
+        lf_path[mask, 0] = steps_pose[k + 1][0]
 
     # Compute motion of right foot
     for k in range(1, n_steps + 1, 2):
@@ -160,17 +157,21 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         rf_path[mask, 2] = np.sin(theta) * max_height_foot
 
         # Compute motion on x-axis
-        alpha = sub_time / t_ss
-        rf_path[mask, 0] = (1 - alpha) * rf_path[mask, 0][0] + alpha * (rf_path[mask, 0][0] + l_stride)
-        last_element = rf_path[mask, 0][-1]
+        if k == 1:
+            alpha = sub_time / t_ss
+            rf_path[mask, 0] = alpha * steps_pose[k + 1][0]
+        else:
+            alpha = sub_time / t_ss
+            rf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[k + 1][0]
 
-        # Add constant part till the next step
+        # # Add constant part till the next step
         t_begin = t_ds + k * (t_ss + t_ds) + t_ss
-        t_end = t_ds + t_ss + t_ds + dt + dt + k + 1 * (t_ss + t_ds)
+        t_end = total_time
         mask = (t >= t_begin) & (t < t_end)
-        rf_path[mask, 0] = last_element
+        rf_path[mask, 0] = steps_pose[k + 1][0]
 
     return t, lf_path, rf_path, steps_pose
+
 
 if __name__ == "__main__":
     # Parameters
@@ -194,29 +195,30 @@ if __name__ == "__main__":
     lf_initial_pose = np.array([0.0, 0.1, 0.0])
     rf_initial_pose = np.array([0.0, -0.1, 0.0])
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
-    n_steps = 3
-    l_stride = 0.2
+    n_steps = 10
+    l_stride = 0.1
     max_height_foot = 0.2
 
     # Build ZMP reference to track
-    # t, zmp_ref = compute_zmp_ref(com_initial_pose, steps_pose, dt, t_ss, t_ds)
+    t, lf_path, rf_path, steps_pose = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds,
+                                                                  l_stride, dt, max_height_foot)
 
-    t, lf_path, rf_path, steps_pose = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot)
+    zmp_ref = compute_zmp_ref(t, com_initial_pose, steps_pose, t_ss, t_ds)
 
     # Figure
-    fig, axes = plt.subplots(2, 2, layout="constrained", figsize=(12,8))
+    fig, axes = plt.subplots(2, 2, layout="constrained", figsize=(12, 8))
 
-    axes[0, 0].plot(t, lf_path[:, 2], label='Left foot trajectory')
-    axes[0, 0].plot(t, rf_path[:, 2], label='Right foot trajectory')
-    axes[0, 0].axis('equal')
-    axes[0, 0].grid(True)
-    axes[0, 0].legend()
-    axes[0, 0].set_xlabel("t [s]")
-    axes[0, 0].set_ylabel("z pos [m]")
-    axes[0, 0].set_title("Feet trajectories")
+    axes[1, 1].plot(t, lf_path[:, 2], label='Left foot trajectory')
+    axes[1, 1].plot(t, rf_path[:, 2], label='Right foot trajectory')
+    axes[1, 1].axis('equal')
+    axes[1, 1].grid(True)
+    axes[1, 1].legend()
+    axes[1, 1].set_xlabel("t [s]")
+    axes[1, 1].set_ylabel("z pos [m]")
+    axes[1, 1].set_title("Feet trajectories")
 
     # Plot ZMP reference vs COM on the x axis
-    # axes[0, 1].plot(t, zmp_ref[:, 0], label='ZMP reference [x]')
+    axes[0, 1].plot(t, zmp_ref[:, 0], label='ZMP reference [x]')
     axes[0, 1].plot(t, lf_path[:, 0], label='Left foot trajectory')
     axes[0, 1].plot(t, rf_path[:, 0], label='Right foot trajectory')
     axes[0, 1].grid(True)
@@ -226,12 +228,12 @@ if __name__ == "__main__":
     axes[0, 1].set_title("Feet and ZMP reference on z axis")
 
     # Plot ZMP reference vs COM on the y axis
-    # axes[1, 1].plot(t, zmp_ref[:, 1], label='ZMP reference [y]')
-    axes[1, 1].grid(True)
-    axes[1, 1].legend()
-    axes[1, 1].set_xlabel("time [s]")
-    axes[1, 1].set_ylabel("y pos [m]")
-    axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
+    axes[0, 0].plot(t, zmp_ref[:, 1], label='ZMP reference [y]')
+    axes[0, 0].grid(True)
+    axes[0, 0].legend()
+    axes[0, 0].set_xlabel("time [s]")
+    axes[0, 0].set_ylabel("y pos [m]")
+    axes[0, 0].set_title("ZMP reference vs COM position on Y-axis")
 
     active_poly_patch = None
 
@@ -241,5 +243,3 @@ if __name__ == "__main__":
         a.grid(True)
 
     plt.show()
-
-
