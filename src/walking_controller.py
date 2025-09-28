@@ -109,37 +109,36 @@ class QPParams:
     w_com: float
 
 
-def apply_qp(q, com_target, foot_target, params: QPParams):
+def qp_inverse_kinematics(q, com_target, foot_target, params: QPParams):
     # Compute the frame placements based on the input configuration
     pin.forwardKinematics(params.model, params.data, q)
     pin.updateFramePlacements(params.model, params.data)
 
+    world_frame = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
+
+    # Compute CoM data
     com = pin.centerOfMass(params.model, params.data, q)
     Jcom = pin.jacobianCenterOfMass(params.model, params.data, q)
+    e_com = com_target - com
 
+    # Compute fixed foot data
     oMf_ff0 = red_data.oMf[params.fixed_foot_frame].copy()
+    J_ff = pin.computeFrameJacobian(params.model, params.data, q, params.fixed_foot_frame, world_frame)
+    e_ff = pin.log(params.data.oMf[params.fixed_foot_frame].inverse() * oMf_ff0).vector
 
-    RF_REF = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
-    J_ff = pin.computeFrameJacobian(params.model, params.data, q, params.fixed_foot_frame, RF_REF)
-    J_mf = pin.computeFrameJacobian(params.model, params.data, q, params.moving_foot_frame, RF_REF)
-    Jpos = J_mf[:3, :]  # take translation rows
-    e_mf3 = (params.data.oMf[params.moving_foot_frame].translation - foot_target)
+    # Compute moving foot data
+    J_mf = pin.computeFrameJacobian(params.model, params.data, q, params.moving_foot_frame, world_frame)[:3, :]
+    e_mf = (params.data.oMf[params.moving_foot_frame].translation - foot_target)
 
+    # Compute torso data
     R = params.data.oMf[params.torso_frame].rotation
     roll, pitch, yaw = Rotation.from_matrix(R).as_euler('xyz', degrees=False)
     Rdes = Rotation.from_euler('xyz', [0, 0, yaw]).as_matrix()
-    e_rot = pin.log3(R.T @ Rdes)  # so3 error (3,)
-
+    e_rot = pin.log3(R.T @ Rdes)
     S = np.array([[1.0, 0.0, 0.0],  # select roll,pitch only
                   [0.0, 1.0, 0.0]])
-
-    J_torso6 = pin.computeFrameJacobian(params.model, params.data, q, params.torso_frame, RF_REF)
-    J_torso_ang = J_torso6[3:6, :]  # (3,nv)
-    A_torso = S @ J_torso_ang  # (2,nv)
-
-    # Compute errors
-    e_com = com_target - com
-    e_ff6 = pin.log(params.data.oMf[params.fixed_foot_frame].inverse() * oMf_ff0).vector
+    J_torso = pin.computeFrameJacobian(params.model, params.data, q, params.torso_frame, world_frame)[3:6, :]
+    A_torso = S @ J_torso
 
     # Compute cost
     nv = params.model.nv
@@ -148,14 +147,14 @@ def apply_qp(q, com_target, foot_target, params: QPParams):
 
     # Add foot cost
     s = np.sqrt(params.w_com)
-    A_mf = s * Jpos
-    b_mf = s * e_mf3
+    A_mf = s * J_mf
+    b_mf = s * e_mf
     H += A_mf.T @ A_mf
     g += A_mf.T @ b_mf
 
     # Compute equality constraints
     Aeq = J_ff
-    beq = e_ff6
+    beq = e_ff
 
     # Solve QP
     dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
@@ -539,14 +538,14 @@ if __name__ == "__main__":
             params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model,
                               data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
 
-            q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+            q_new, dq = qp_inverse_kinematics(q, com_target, moving_foot_pos, params)
             q = q_new
         else:
             moving_foot_pos = rf_path[k]
             params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
                               data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
 
-            q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+            q_new, dq = qp_inverse_kinematics(q, com_target, moving_foot_pos, params)
             q = q_new
 
         pin.forwardKinematics(red_model, red_data, q)
