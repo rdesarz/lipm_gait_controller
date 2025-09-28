@@ -210,7 +210,7 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         # Compute motion on x-axis
         if k == 0:
             alpha = sub_time / t_ss
-            lf_path[mask, 0] = alpha * steps_pose[k + 1][0]
+            lf_path[mask, 0] = (1 - alpha) * lf_initial_pose[0] + alpha * steps_pose[k + 1][0]
         else:
             alpha = sub_time / t_ss
             lf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[k + 1][0]
@@ -235,7 +235,7 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         # Compute motion on x-axis
         if k == 1:
             alpha = sub_time / t_ss
-            rf_path[mask, 0] = alpha * steps_pose[k + 1][0]
+            rf_path[mask, 0] = (1 - alpha) * rf_initial_pose[0] + alpha * steps_pose[k + 1][0]
         else:
             alpha = sub_time / t_ss
             rf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[k + 1][0]
