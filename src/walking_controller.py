@@ -178,8 +178,8 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
     t = np.arange(N) * dt
 
     # Initialize path
-    rf_path = np.zeros([N, 3])
-    lf_path = np.zeros([N, 3])
+    rf_path = np.ones([N, 3]) * rf_initial_pose
+    lf_path = np.ones([N, 3]) * lf_initial_pose
 
     # Switch of the CoM to the right foot implies both feet stays at the same position
     mask = t < t_ds
@@ -205,7 +205,7 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
 
         # Compute motion on z-axis
         theta = sub_time * math.pi / t_ss
-        lf_path[mask, 2] = np.sin(theta) * max_height_foot
+        lf_path[mask, 2] += np.sin(theta) * max_height_foot
 
         # Compute motion on x-axis
         if k == 0:
@@ -230,7 +230,7 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
 
         # Compute motion on z-axis
         theta = sub_time * math.pi / t_ss
-        rf_path[mask, 2] = np.sin(theta) * max_height_foot
+        rf_path[mask, 2] += np.sin(theta) * max_height_foot
 
         # Compute motion on x-axis
         if k == 1:
