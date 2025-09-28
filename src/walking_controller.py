@@ -400,7 +400,7 @@ if __name__ == "__main__":
 
     lf_initial_pose = oMf_lf0.translation
     rf_initial_pose = oMf_rf0.translation
-    com_initial_pose = np.array([0.0, 0.0])
+    com_initial_pose = pin.centerOfMass(red_model, red_data, q)[0:1]
 
     # Build ZMP reference to track
     t, lf_path, rf_path, steps_pose = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds,
