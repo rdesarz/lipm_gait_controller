@@ -1,20 +1,17 @@
-import math
+import math, os, sys
 from dataclasses import dataclass
 from typing import Any
+from time import sleep
 
 import numpy as np
 from matplotlib import pyplot as plt
 from shapely import Polygon, Point, affinity, union
 from shapely.ops import nearest_points
 from scipy.linalg import solve_discrete_are
-import os, sys
-import numpy as np
+from scipy.spatial.transform import Rotation
 import pinocchio as pin
-from time import sleep
 from pinocchio.visualize import MeshcatVisualizer
 from qpsolvers import solve_qp
-
-from scipy.spatial.transform import Rotation
 
 
 def compute_zmp_ref(t, com_initial_pose, steps, ss_t, ds_t):
@@ -539,7 +536,8 @@ if __name__ == "__main__":
 
         if phases[k] < 0.0:
             moving_foot_pos = lf_path[k]
-            params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model, data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
+            params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model,
+                              data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
 
             q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
             q = q_new
