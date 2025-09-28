@@ -277,8 +277,8 @@ if __name__ == "__main__":
 
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
     n_steps = 5
-    l_stride = 0.1
-    max_height_foot = 0.2
+    l_stride = 0.3
+    max_height_foot = 0.05
 
     enable_live_plot = False
 
