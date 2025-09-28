@@ -109,7 +109,7 @@ class QPParams:
     w_com: float
 
 
-def qp_inverse_kinematics(q, com_target, foot_target, params: QPParams):
+def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     # Compute the frame placements based on the input configuration
     pin.forwardKinematics(params.model, params.data, q)
     pin.updateFramePlacements(params.model, params.data)
@@ -127,8 +127,8 @@ def qp_inverse_kinematics(q, com_target, foot_target, params: QPParams):
     e_ff = pin.log(params.data.oMf[params.fixed_foot_frame].inverse() * oMf_ff0).vector
 
     # Compute moving foot data
-    J_mf = pin.computeFrameJacobian(params.model, params.data, q, params.moving_foot_frame, world_frame)[:3, :]
-    e_mf = (params.data.oMf[params.moving_foot_frame].translation - foot_target)
+    J_mf = pin.computeFrameJacobian(params.model, params.data, q, params.moving_foot_frame, world_frame)
+    e_mf = pin.log(params.data.oMf[params.moving_foot_frame].inverse() * oMf_target).vector
 
     # Compute torso data
     R = params.data.oMf[params.torso_frame].rotation
@@ -142,15 +142,8 @@ def qp_inverse_kinematics(q, com_target, foot_target, params: QPParams):
 
     # Compute cost
     nv = params.model.nv
-    H = params.mu * np.eye(nv) + params.w_com * (Jcom.T @ Jcom) + params.w_torso * (A_torso.T @ A_torso)
-    g = - params.w_com * (Jcom.T @ e_com) - params.w_torso * (A_torso.T @ (S @ e_rot))
-
-    # Add foot cost
-    s = np.sqrt(params.w_com)
-    A_mf = s * J_mf
-    b_mf = s * e_mf
-    H += A_mf.T @ A_mf
-    g += A_mf.T @ b_mf
+    H = params.mu * np.eye(nv) + params.w_com * (Jcom.T @ Jcom) + params.w_torso * (A_torso.T @ A_torso) + params.w_com * (J_mf.T @ J_mf)
+    g = - params.w_com * (Jcom.T @ e_com) - params.w_torso * (A_torso.T @ (S @ e_rot)) - params.w_com * (J_mf.T @ e_mf)
 
     # Compute equality constraints
     Aeq = J_ff
@@ -498,9 +491,6 @@ if __name__ == "__main__":
     for a in (ax_x, ax_y):
         a.grid(True)
 
-    print(f"Initial center of mass position: {pin.centerOfMass(red_model, red_data, q)}")
-    print(f"Initial left foot position: {red_data.oMf[LF].translation}")
-
     sleep(2.0)
 
     frames = []
@@ -534,18 +524,20 @@ if __name__ == "__main__":
         com_target = np.array([x[k, 1], y[k, 1], lf_initial_pose[2] + zc])
 
         if phases[k] < 0.0:
-            moving_foot_pos = lf_path[k]
             params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model,
                               data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
 
-            q_new, dq = qp_inverse_kinematics(q, com_target, moving_foot_pos, params)
+            oMf_lf = oMf_lf0.copy()
+            oMf_lf.translation = lf_path[k]
+            q_new, dq = qp_inverse_kinematics(q, com_target, oMf_lf, params)
             q = q_new
         else:
-            moving_foot_pos = rf_path[k]
             params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
                               data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
 
-            q_new, dq = qp_inverse_kinematics(q, com_target, moving_foot_pos, params)
+            oMf_rf = oMf_rf0.copy()
+            oMf_rf.translation = rf_path[k]
+            q_new, dq = qp_inverse_kinematics(q, com_target, oMf_rf, params)
             q = q_new
 
         pin.forwardKinematics(red_model, red_data, q)
