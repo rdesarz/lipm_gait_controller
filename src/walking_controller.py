@@ -107,6 +107,7 @@ class QPParams:
     w_torso: float
     mu: float
     w_com: float
+    dt: float
 
 
 def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
@@ -249,7 +250,7 @@ if __name__ == "__main__":
     # Parameters
     dt = 0.005  # Delta of time of the model simulation
     g = 9.81  # Gravity
-    zc = 0.814  # Height of the COM
+    zc = 0.89  # Height of the COM
     w = math.sqrt(g / zc)
 
     # Preview controller parameters
@@ -525,7 +526,7 @@ if __name__ == "__main__":
 
         if phases[k] < 0.0:
             params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model,
-                              data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
+                              data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3, dt=dt)
 
             oMf_lf = oMf_lf0.copy()
             oMf_lf.translation = lf_path[k]
@@ -533,7 +534,7 @@ if __name__ == "__main__":
             q = q_new
         else:
             params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
-                              data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
+                              data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3, dt=dt)
 
             oMf_rf = oMf_rf0.copy()
             oMf_rf.translation = rf_path[k]
