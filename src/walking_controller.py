@@ -226,7 +226,6 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         t_end = total_time
         mask = (t >= t_begin) & (t < t_end)
         lf_path[mask, 0] = steps_pose[k + 1][0]
-        phases[mask] = -1.0
 
     # Compute motion of right foot
     for k in range(1, n_steps + 1, 2):
@@ -253,7 +252,6 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         t_end = total_time
         mask = (t >= t_begin) & (t < t_end)
         rf_path[mask, 0] = steps_pose[k + 1][0]
-        phases[mask] = 1.0
 
     return t, lf_path, rf_path, steps_pose, phases
 
@@ -557,9 +555,9 @@ if __name__ == "__main__":
         pin.updateFramePlacements(red_model, red_data)
         com_final = pin.centerOfMass(red_model, red_data, q)
         lf_final = red_data.oMf[LF].translation
-        # if viz:
-        #     viz.display(q)
-        #     sleep(dt)
+        if viz:
+            viz.display(q)
+            # sleep(dt)
 
         if k % draw_every == 0 and enable_live_plot:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
