@@ -267,7 +267,7 @@ if __name__ == "__main__":
     # ZMP reference parameters
     t_ss = 1.0  # Single support phase time window
     t_ds = 0.2  # Double support phase time window
-    com_initial_pose = np.array([0.0, 0.0])
+
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
     n_steps = 5
     l_stride = 0.1
@@ -400,6 +400,7 @@ if __name__ == "__main__":
 
     lf_initial_pose = oMf_lf0.translation
     rf_initial_pose = oMf_rf0.translation
+    com_initial_pose = np.array([0.0, 0.0])
 
     # Build ZMP reference to track
     t, lf_path, rf_path, steps_pose = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds,
