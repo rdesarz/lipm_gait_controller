@@ -462,12 +462,12 @@ if __name__ == "__main__":
     axes[1, 1].set_ylabel("y pos [m]")
     axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
 
-    axes[1, 0].plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
+    axes[1, 0].plot(t, phases, marker='.', label='Phases [y]')
     axes[1, 0].grid(True)
     axes[1, 0].legend()
     axes[1, 0].set_xlabel("time [s]")
-    axes[1, 0].set_ylabel("preview gain [-]")
-    axes[1, 0].set_title("Preview Gains")
+    axes[1, 0].set_ylabel("Phases [-]")
+    axes[1, 0].set_title("Phases ")
 
     lf_x_traj_line, = axes[2, 0].plot(t, lf_path[:, 0], label='Left foot trajectory')
     rf_x_traj_line, = axes[2, 0].plot(t, rf_path[:, 0], label='Right foot trajectory')
@@ -557,9 +557,9 @@ if __name__ == "__main__":
         pin.updateFramePlacements(red_model, red_data)
         com_final = pin.centerOfMass(red_model, red_data, q)
         lf_final = red_data.oMf[LF].translation
-        if viz:
-            viz.display(q)
-            sleep(dt)
+        # if viz:
+        #     viz.display(q)
+        #     sleep(dt)
 
         if k % draw_every == 0 and enable_live_plot:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
