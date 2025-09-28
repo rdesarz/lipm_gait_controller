@@ -539,7 +539,7 @@ if __name__ == "__main__":
         lf_final = red_data.oMf[LF].translation
         if viz:
             viz.display(q)
-            sleep(0.05)
+            sleep(0.005)
 
         if k % draw_every == 0 and enable_live_plot:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
