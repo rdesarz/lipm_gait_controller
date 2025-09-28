@@ -400,13 +400,13 @@ if __name__ == "__main__":
 
     lf_initial_pose = oMf_lf0.translation
     rf_initial_pose = oMf_rf0.translation
-    com_initial_pose = pin.centerOfMass(red_model, red_data, q)[0:2]
+    com_initial_pose = pin.centerOfMass(red_model, red_data, q)
 
     # Build ZMP reference to track
     t, lf_path, rf_path, steps_pose = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds,
                                                                   l_stride, dt, max_height_foot)
 
-    zmp_ref = compute_zmp_ref(t, com_initial_pose, steps_pose, t_ss, t_ds)
+    zmp_ref = compute_zmp_ref(t, com_initial_pose[0:2], steps_pose, t_ss, t_ds)
 
     T = len(t)
     u = np.zeros((T, 2))
@@ -526,19 +526,20 @@ if __name__ == "__main__":
         com_arr = np.asarray(com_xy_hist)
         zmp_arr = np.asarray(zmp_xy_hist)
 
-        com_target = np.array([x[k, 1], y[k, 1], ])
-        # moving_foot_pos =
+        com_target = np.array([x[k, 1], y[k, 1], lf_initial_pose[2] + zc])
+        moving_foot_pos = rf_path[k]
+        params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model, data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
 
-        # q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
-        # q = q_new
+        q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+        q = q_new
 
         pin.forwardKinematics(red_model, red_data, q)
         pin.updateFramePlacements(red_model, red_data)
         com_final = pin.centerOfMass(red_model, red_data, q)
         lf_final = red_data.oMf[LF].translation
-        # if viz:
-        #     viz.display(q)
-        #     sleep(0.05)
+        if viz:
+            viz.display(q)
+            sleep(0.05)
 
         if k % draw_every == 0 and enable_live_plot:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
