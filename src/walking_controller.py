@@ -269,8 +269,6 @@ if __name__ == "__main__":
     t_ds = 0.2  # Double support phase time window
     com_initial_pose = np.array([0.0, 0.0])
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
-    lf_initial_pose = np.array([0.0, 0.1, 0.0])
-    rf_initial_pose = np.array([0.0, -0.1, 0.0])
     n_steps = 5
     l_stride = 0.1
     max_height_foot = 0.2
@@ -283,12 +281,6 @@ if __name__ == "__main__":
     tau = 0.3  # s duration
     n_push = int(tau / dt)
     k_push = int((t_ss + 0.5 * t_ds) / dt)  # mid-DS of first pair
-
-    # Build ZMP reference to track
-    t, lf_path, rf_path, steps_pose = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds,
-                                                                  l_stride, dt, max_height_foot)
-
-    zmp_ref = compute_zmp_ref(t, com_initial_pose, steps_pose, t_ss, t_ds)
 
     # Discrete cart-table model with jerk input
     A = np.array([[1.0, dt, 0.5 * dt * dt],
@@ -324,91 +316,6 @@ if __name__ == "__main__":
     for l in range(n_preview_steps - 2):
         Gd[l + 1] = np.linalg.inv(R + B1.T @ K @ B1) @ B1.T @ X
         X = Ac.T @ X
-
-    T = len(t)
-    u = np.zeros((T, 2))
-
-    zmp_padded = np.vstack([
-        zmp_ref,
-        np.repeat(zmp_ref[-1][None, :], n_preview_steps, axis=0)
-    ])
-
-    x0 = np.array([0.0, 0.0, 0.0, 0.0], dtype=float)
-    y0 = np.array([0.0, 0.0, 0.0, 0.0], dtype=float)
-    x = np.zeros((len(zmp_ref) + 1, 4), dtype=float)
-    y = np.zeros((len(zmp_ref) + 1, 4), dtype=float)
-    x[0] = x0
-    y[0] = y0
-
-    # Figure
-    fig, axes = plt.subplots(3, 2, layout="constrained", figsize=(12,8))
-
-    ax_live_plot = axes[0, 0]
-    ax_live_plot.grid(True)
-    ax_live_plot.legend()
-    ax_live_plot.set_xlabel("x pos [m]")
-    ax_live_plot.set_ylabel("y pos [m]")
-    ax_live_plot.set_title("ZMP / CoM trajectories")
-
-    # Plot ZMP reference vs COM on the x axis
-    axes[0, 1].plot(t, zmp_ref[:, 0], label='ZMP reference [x]')
-    com_ref_x_line, = axes[0, 1].plot([], [], label='COM [x]')
-    axes[0, 1].grid(True)
-    axes[0, 1].legend()
-    axes[0, 1].set_xlabel("t [s]")
-    axes[0, 1].set_ylabel("x pos [m]")
-    axes[0, 1].set_title("ZMP reference vs COM position on X-axis")
-
-    # Plot ZMP reference vs COM on the y axis
-    axes[1, 1].plot(t, zmp_ref[:, 1], label='ZMP reference [y]')
-    com_ref_y_line, = axes[1, 1].plot([], [], label='COM [y]')
-    axes[1, 1].grid(True)
-    axes[1, 1].legend()
-    axes[1, 1].set_xlabel("time [s]")
-    axes[1, 1].set_ylabel("y pos [m]")
-    axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
-
-    axes[1, 0].plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
-    axes[1, 0].grid(True)
-    axes[1, 0].legend()
-    axes[1, 0].set_xlabel("time [s]")
-    axes[1, 0].set_ylabel("preview gain [-]")
-    axes[1, 0].set_title("Preview Gains")
-
-    lf_x_traj_line, = axes[2, 0].plot(t, lf_path[:, 0], label='Left foot trajectory')
-    rf_x_traj_line, = axes[2, 0].plot(t, rf_path[:, 0], label='Right foot trajectory')
-    axes[2, 0].grid(True)
-    axes[2, 0].legend()
-    axes[2, 0].set_xlabel("t [s]")
-    axes[2, 0].set_ylabel("z pos [m]")
-    axes[2, 0].set_title("Feet trajectories on z axis")
-
-    lf_z_traj_line, = axes[2, 1].plot(t, lf_path[:, 2], label='Left foot trajectory')
-    rf_z_traj_line, = axes[2, 1].plot(t, rf_path[:, 2], label='Right foot trajectory')
-    axes[2, 1].grid(True)
-    axes[2, 1].legend()
-    axes[2, 1].set_xlabel("t [s]")
-    axes[2, 1].set_ylabel("x pos [m]")
-    axes[2, 1].set_title("Feet trajectories on x axis")
-
-    info = ax_live_plot.text(
-        0.05, 0.92, "", transform=ax_live_plot.transAxes,
-        ha="left", va="top",
-        bbox=dict(boxstyle="round", fc="white", alpha=0.8)
-    )
-
-    # Static ZMP ref path for context
-    zmp_path_line, = ax_live_plot.plot(zmp_ref[:, 0], zmp_ref[:, 1], linestyle='-', label='ZMP ref', alpha=1.0)
-    com_path_line, = ax_live_plot.plot([], [], linestyle='-', label='CoM', color='red')
-
-    active_poly_patch = None
-
-    ax_live_plot.legend()
-
-    ax_x = axes[0, 1]
-    ax_y = axes[1, 1]
-    for a in (ax_x, ax_y):
-        a.grid(True)
 
     # Simulate
     zmp_xy_hist = []
@@ -491,6 +398,100 @@ if __name__ == "__main__":
     oMf_rf0 = red_data.oMf[RF].copy()
     oMf_lf0 = red_data.oMf[LF].copy()
 
+    lf_initial_pose = oMf_lf0.translation
+    rf_initial_pose = oMf_rf0.translation
+
+    # Build ZMP reference to track
+    t, lf_path, rf_path, steps_pose = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds,
+                                                                  l_stride, dt, max_height_foot)
+
+    zmp_ref = compute_zmp_ref(t, com_initial_pose, steps_pose, t_ss, t_ds)
+
+    T = len(t)
+    u = np.zeros((T, 2))
+
+    zmp_padded = np.vstack([
+        zmp_ref,
+        np.repeat(zmp_ref[-1][None, :], n_preview_steps, axis=0)
+    ])
+
+    x0 = np.array([0.0, 0.0, 0.0, 0.0], dtype=float)
+    y0 = np.array([0.0, 0.0, 0.0, 0.0], dtype=float)
+    x = np.zeros((len(zmp_ref) + 1, 4), dtype=float)
+    y = np.zeros((len(zmp_ref) + 1, 4), dtype=float)
+    x[0] = x0
+    y[0] = y0
+
+    # Figure
+    fig, axes = plt.subplots(3, 2, layout="constrained", figsize=(12, 8))
+
+    ax_live_plot = axes[0, 0]
+    ax_live_plot.grid(True)
+    ax_live_plot.legend()
+    ax_live_plot.set_xlabel("x pos [m]")
+    ax_live_plot.set_ylabel("y pos [m]")
+    ax_live_plot.set_title("ZMP / CoM trajectories")
+
+    # Plot ZMP reference vs COM on the x axis
+    axes[0, 1].plot(t, zmp_ref[:, 0], label='ZMP reference [x]')
+    com_ref_x_line, = axes[0, 1].plot([], [], label='COM [x]')
+    axes[0, 1].grid(True)
+    axes[0, 1].legend()
+    axes[0, 1].set_xlabel("t [s]")
+    axes[0, 1].set_ylabel("x pos [m]")
+    axes[0, 1].set_title("ZMP reference vs COM position on X-axis")
+
+    # Plot ZMP reference vs COM on the y axis
+    axes[1, 1].plot(t, zmp_ref[:, 1], label='ZMP reference [y]')
+    com_ref_y_line, = axes[1, 1].plot([], [], label='COM [y]')
+    axes[1, 1].grid(True)
+    axes[1, 1].legend()
+    axes[1, 1].set_xlabel("time [s]")
+    axes[1, 1].set_ylabel("y pos [m]")
+    axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
+
+    axes[1, 0].plot(np.arange(1, n_preview_steps) * dt, Gd, marker='.', label='Preview gains [y]')
+    axes[1, 0].grid(True)
+    axes[1, 0].legend()
+    axes[1, 0].set_xlabel("time [s]")
+    axes[1, 0].set_ylabel("preview gain [-]")
+    axes[1, 0].set_title("Preview Gains")
+
+    lf_x_traj_line, = axes[2, 0].plot(t, lf_path[:, 0], label='Left foot trajectory')
+    rf_x_traj_line, = axes[2, 0].plot(t, rf_path[:, 0], label='Right foot trajectory')
+    axes[2, 0].grid(True)
+    axes[2, 0].legend()
+    axes[2, 0].set_xlabel("t [s]")
+    axes[2, 0].set_ylabel("z pos [m]")
+    axes[2, 0].set_title("Feet trajectories on x axis")
+
+    lf_z_traj_line, = axes[2, 1].plot(t, lf_path[:, 2], label='Left foot trajectory')
+    rf_z_traj_line, = axes[2, 1].plot(t, rf_path[:, 2], label='Right foot trajectory')
+    axes[2, 1].grid(True)
+    axes[2, 1].legend()
+    axes[2, 1].set_xlabel("t [s]")
+    axes[2, 1].set_ylabel("x pos [m]")
+    axes[2, 1].set_title("Feet trajectories on z axis")
+
+    info = ax_live_plot.text(
+        0.05, 0.92, "", transform=ax_live_plot.transAxes,
+        ha="left", va="top",
+        bbox=dict(boxstyle="round", fc="white", alpha=0.8)
+    )
+
+    # Static ZMP ref path for context
+    zmp_path_line, = ax_live_plot.plot(zmp_ref[:, 0], zmp_ref[:, 1], linestyle='-', label='ZMP ref', alpha=1.0)
+    com_path_line, = ax_live_plot.plot([], [], linestyle='-', label='CoM', color='red')
+
+    active_poly_patch = None
+
+    ax_live_plot.legend()
+
+    ax_x = axes[0, 1]
+    ax_y = axes[1, 1]
+    for a in (ax_x, ax_y):
+        a.grid(True)
+
     print(f"Initial center of mass position: {pin.centerOfMass(red_model, red_data, q)}")
     print(f"Initial left foot position: {red_data.oMf[LF].translation}")
 
@@ -523,6 +524,20 @@ if __name__ == "__main__":
 
         com_arr = np.asarray(com_xy_hist)
         zmp_arr = np.asarray(zmp_xy_hist)
+
+        com_target = np.array([x[k, 1], y[k, 1], ])
+        # moving_foot_pos =
+
+        # q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+        # q = q_new
+
+        pin.forwardKinematics(red_model, red_data, q)
+        pin.updateFramePlacements(red_model, red_data)
+        com_final = pin.centerOfMass(red_model, red_data, q)
+        lf_final = red_data.oMf[LF].translation
+        # if viz:
+        #     viz.display(q)
+        #     sleep(0.05)
 
         if k % draw_every == 0 and enable_live_plot:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
