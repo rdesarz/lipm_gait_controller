@@ -16,6 +16,7 @@ from qpsolvers import solve_qp
 
 from scipy.spatial.transform import Rotation
 
+
 def compute_zmp_ref(t, com_initial_pose, steps, ss_t, ds_t):
     T = len(t)
     zmp_ref = np.zeros([T, 2])
@@ -98,6 +99,7 @@ def clamp_to_polygon(u_xy, poly: Polygon):
 
     return np.array([q.x, q.y])
 
+
 @dataclass
 class QPParams:
     fixed_foot_frame: str
@@ -108,6 +110,7 @@ class QPParams:
     w_torso: float
     mu: float
     w_com: float
+
 
 def apply_qp(q, com_target, foot_target, params: QPParams):
     # Compute the frame placements based on the input configuration
@@ -165,6 +168,7 @@ def apply_qp(q, com_target, foot_target, params: QPParams):
 
     return q_next, dq
 
+
 def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot):
     # The sequence is the following:
     # Start with a double support phase to switch CoM on right foot
@@ -180,6 +184,7 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
     # Initialize path
     rf_path = np.ones([N, 3]) * rf_initial_pose
     lf_path = np.ones([N, 3]) * lf_initial_pose
+    phases = np.ones(N)
 
     # Switch of the CoM to the right foot implies both feet stays at the same position
     mask = t < t_ds
@@ -206,6 +211,7 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         # Compute motion on z-axis
         theta = sub_time * math.pi / t_ss
         lf_path[mask, 2] += np.sin(theta) * max_height_foot
+        phases[mask] = -1.0
 
         # Compute motion on x-axis
         if k == 0:
@@ -220,6 +226,7 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         t_end = total_time
         mask = (t >= t_begin) & (t < t_end)
         lf_path[mask, 0] = steps_pose[k + 1][0]
+        phases[mask] = -1.0
 
     # Compute motion of right foot
     for k in range(1, n_steps + 1, 2):
@@ -231,6 +238,7 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         # Compute motion on z-axis
         theta = sub_time * math.pi / t_ss
         rf_path[mask, 2] += np.sin(theta) * max_height_foot
+        phases[mask] = 1.0
 
         # Compute motion on x-axis
         if k == 1:
@@ -245,8 +253,9 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         t_end = total_time
         mask = (t >= t_begin) & (t < t_end)
         rf_path[mask, 0] = steps_pose[k + 1][0]
+        phases[mask] = 1.0
 
-    return t, lf_path, rf_path, steps_pose
+    return t, lf_path, rf_path, steps_pose, phases
 
 
 if __name__ == "__main__":
@@ -330,6 +339,7 @@ if __name__ == "__main__":
         if jid > 0 and full_model.joints[jid].nq == 1:
             q[full_model.joints[jid].idx_q] = val
 
+
     # Load full model
     PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
     URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")
@@ -403,8 +413,9 @@ if __name__ == "__main__":
     com_initial_pose = pin.centerOfMass(red_model, red_data, q)
 
     # Build ZMP reference to track
-    t, lf_path, rf_path, steps_pose = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds,
-                                                                  l_stride, dt, max_height_foot)
+    t, lf_path, rf_path, steps_pose, phases = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps,
+                                                                          t_ss, t_ds,
+                                                                          l_stride, dt, max_height_foot)
 
     zmp_ref = compute_zmp_ref(t, com_initial_pose[0:2], steps_pose, t_ss, t_ds)
 
@@ -527,11 +538,20 @@ if __name__ == "__main__":
         zmp_arr = np.asarray(zmp_xy_hist)
 
         com_target = np.array([x[k, 1], y[k, 1], lf_initial_pose[2] + zc])
-        moving_foot_pos = rf_path[k]
-        params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model, data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
 
-        q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
-        q = q_new
+        if phases[k] < 0.0:
+            moving_foot_pos = lf_path[k]
+            params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model, data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
+
+            q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+            q = q_new
+        else:
+            moving_foot_pos = rf_path[k]
+            params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
+                              data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3)
+
+            q_new, dq = apply_qp(q, com_target, moving_foot_pos, params)
+            q = q_new
 
         pin.forwardKinematics(red_model, red_data, q)
         pin.updateFramePlacements(red_model, red_data)
