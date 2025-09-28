@@ -270,14 +270,7 @@ if __name__ == "__main__":
     l_stride = 0.3
     max_height_foot = 0.05
 
-    enable_live_plot = False
-
-    # Applied force parameters
-    m = 60.0  # kg
-    Fx, Fy = 0.0, 0.0  # N
-    tau = 0.3  # s duration
-    n_push = int(tau / dt)
-    k_push = int((t_ss + 0.5 * t_ds) / dt)  # mid-DS of first pair
+    enable_live_plot = True
 
     # Discrete cart-table model with jerk input
     A = np.array([[1.0, dt, 0.5 * dt * dt],
@@ -496,11 +489,6 @@ if __name__ == "__main__":
 
     frames = []
     for k in range(T):
-        # Apply the requested perturbation
-        if k_push <= k < k_push + n_push:
-            x[k, 1] += (Fx / m) * dt
-            y[k, 1] += (Fy / m) * dt
-
         # Get zmp ref horizon
         zmp_ref_horizon = zmp_padded[k + 1:k + n_preview_steps]
 
