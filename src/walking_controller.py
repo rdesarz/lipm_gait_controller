@@ -105,8 +105,12 @@ class QPParams:
     model: pin.Model
     data: Any
     w_torso: float
-    mu: float
     w_com: float
+    w_foot: float
+    k_torso: float
+    k_com: float
+    k_foot: float
+    mu: float
     dt: float
 
 
@@ -143,8 +147,15 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
 
     # Compute cost
     nv = params.model.nv
-    H = params.mu * np.eye(nv) + params.w_com * (Jcom.T @ Jcom) + params.w_torso * (A_torso.T @ A_torso) + params.w_com * (J_mf.T @ J_mf)
-    g = - params.w_com * (Jcom.T @ e_com) - params.w_torso * (A_torso.T @ (S @ e_rot)) - params.w_com * (J_mf.T @ e_mf)
+
+    H = (params.mu * np.eye(nv)
+         + params.w_com * (Jcom.T @ Jcom)
+         + params.w_torso * (A_torso.T @ A_torso)
+         + params.w_foot * (J_mf.T @ J_mf))
+
+    g = (- params.w_com * (Jcom.T @ e_com)
+         - params.w_torso * (A_torso.T @ (S @ e_rot))
+         - params.w_foot * (J_mf.T @ e_mf))
 
     # Compute equality constraints
     Aeq = J_ff
@@ -270,7 +281,7 @@ if __name__ == "__main__":
     l_stride = 0.3
     max_height_foot = 0.05
 
-    enable_live_plot = True
+    enable_live_plot = False
 
     # Discrete cart-table model with jerk input
     A = np.array([[1.0, dt, 0.5 * dt * dt],
@@ -514,7 +525,7 @@ if __name__ == "__main__":
 
         if phases[k] < 0.0:
             params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model,
-                              data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3, dt=dt)
+                              data=red_data, w_torso=10.0, w_com=10.0, w_foot= 100.0, mu=1e-3, dt=dt, k_torso=0.5, k_com=0.5, k_foot= 0.5)
 
             oMf_lf = oMf_lf0.copy()
             oMf_lf.translation = lf_path[k]
@@ -522,7 +533,8 @@ if __name__ == "__main__":
             q = q_new
         else:
             params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
-                              data=red_data, w_torso=10.0, w_com=10.0, mu=1e-3, dt=dt)
+                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=100.0, mu=1e-3, dt=dt, k_torso=0.5,
+                              k_com=0.5, k_foot=0.5)
 
             oMf_rf = oMf_rf0.copy()
             oMf_rf.translation = rf_path[k]
