@@ -154,10 +154,10 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
          + params.w_foot * (J_mf.T @ J_mf)
          + params.w_foot * (J_ff.T @ J_ff))
 
-    g = (- params.w_com * (Jcom.T @ e_com)
-         - params.w_torso * (A_torso.T @ (S @ e_rot))
-         - params.w_foot * (J_mf.T @ e_mf)
-         - params.w_foot * (J_ff.T @ e_ff))
+    g = (- params.w_com * (Jcom.T @ (params.k_com * e_com / params.dt))
+         - params.w_torso * (A_torso.T @ (S @ (params.k_torso * e_rot / params.dt)))
+         - params.w_foot * (J_mf.T @ (params.k_foot * e_mf / params.dt))
+         - params.w_foot * (J_ff.T @ (params.k_foot * e_ff / params.dt)))
 
     # Compute equality constraints
     Aeq = None
@@ -527,7 +527,8 @@ if __name__ == "__main__":
 
         if phases[k] < 0.0:
             params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model,
-                              data=red_data, w_torso=10.0, w_com=10.0, w_foot= 100.0, mu=1e-3, dt=dt, k_torso=0.5, k_com=0.5, k_foot= 0.5)
+                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=100.0, mu=1e-3, dt=dt, k_torso=0.5,
+                              k_com=0.5, k_foot=0.5)
 
             oMf_lf = oMf_lf0.copy()
             oMf_lf.translation = lf_path[k]
