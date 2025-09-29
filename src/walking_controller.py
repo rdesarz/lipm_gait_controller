@@ -127,7 +127,7 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     e_com = com_target - com
 
     # Compute fixed foot data
-    oMf_ff0 = red_data.oMf[params.fixed_foot_frame].copy()
+    oMf_ff0 = params.data.oMf[params.fixed_foot_frame].copy()
     J_ff = pin.computeFrameJacobian(params.model, params.data, q, params.fixed_foot_frame, world_frame)
     e_ff = pin.log(params.data.oMf[params.fixed_foot_frame].inverse() * oMf_ff0).vector
 
