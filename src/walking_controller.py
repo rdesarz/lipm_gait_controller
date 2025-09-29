@@ -151,15 +151,17 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     H = (params.mu * np.eye(nv)
          + params.w_com * (Jcom.T @ Jcom)
          + params.w_torso * (A_torso.T @ A_torso)
-         + params.w_foot * (J_mf.T @ J_mf))
+         + params.w_foot * (J_mf.T @ J_mf)
+         + params.w_foot * (J_ff.T @ J_ff))
 
     g = (- params.w_com * (Jcom.T @ e_com)
          - params.w_torso * (A_torso.T @ (S @ e_rot))
-         - params.w_foot * (J_mf.T @ e_mf))
+         - params.w_foot * (J_mf.T @ e_mf)
+         - params.w_foot * (J_ff.T @ e_ff))
 
     # Compute equality constraints
-    Aeq = J_ff
-    beq = e_ff
+    Aeq = None
+    beq = None
 
     # Solve QP
     dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
