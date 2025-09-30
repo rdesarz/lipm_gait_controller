@@ -113,20 +113,21 @@ class QPParams:
     mu: float
     dt: float
 
+
 def se3_task_error_and_jac(model, data, q, frame_id, M_des):
     # Pose of frame i in world; LOCAL frame convention (right differentiation)
-    oMi = data.oMf[frame_id]              # requires updateFramePlacements()
-    iMd = oMi.actInv(M_des)               # ^i M_d  = oMi^{-1} * oMdes
-    e6  = pin.log(iMd).vector             # right-invariant pose error in LOCAL frame
+    oMi = data.oMf[frame_id]  # requires updateFramePlacements()
+    iMd = oMi.actInv(M_des)  # ^i M_d  = oMi^{-1} * oMdes
+    e6 = pin.log(iMd).vector  # right-invariant pose error in LOCAL frame
 
     # Geometric Jacobian in LOCAL frame
     Jloc = pin.computeFrameJacobian(model, data, q, frame_id, pin.LOCAL)
 
     # Right Jacobian of the log map (Pinocchio’s Jlog6)
-    Jlog = pin.Jlog6(iMd.inverse())       # maps LOCAL spatial vel -> d(log) in se(3)
+    Jlog = pin.Jlog6(iMd.inverse())  # maps LOCAL spatial vel -> d(log) in se(3)
 
     # Task Jacobian
-    Jtask = - Jlog @ Jloc                 # minus sign per right-invariant residual
+    Jtask = - Jlog @ Jloc  # minus sign per right-invariant residual
 
     return e6, Jtask
 
@@ -138,7 +139,7 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     nv = params.model.nv
 
     # -------- CoM task (Euclidean) --------
-    com  = pin.centerOfMass(params.model, params.data, q)
+    com = pin.centerOfMass(params.model, params.data, q)
     Jcom = pin.jacobianCenterOfMass(params.model, params.data, q)  # (3,nv)
     e_com = com_target - com
 
@@ -164,24 +165,27 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     )
     # Replace desired yaw by current yaw -> zero yaw error implicitly
     # Keep only roll,pitch components of angular error (indices 0,1) and rows (0,1) of J
-    S = np.zeros((2, 6)); S[0,0] = 1.0; S[1,1] = 1.0
+    S = np.zeros((2, 6))
+    S[0, 0] = 1.0
+    S[1, 1] = 1.0
     e_torso = S @ e_torso6
     J_torso = S @ J_torso6
 
     # -------- Quadratic cost --------
-    H = (params.mu * np.eye(nv)
-         + params.w_com   * (Jcom.T   @ Jcom)
-         + params.w_foot  * (J_mf.T   @ J_mf)
-         + params.w_foot * (J_ff.T @ J_ff)
-         + params.w_torso * (J_torso.T @ J_torso))
+    H = (Jcom.T @ (np.eye(3) * params.w_com) @ Jcom)
+         # + params.w_foot * (J_mf.T @ J_mf)
+         # + params.w_foot * (J_ff.T @ J_ff)
+         # + params.w_torso * (J_torso.T @ J_torso))
 
-    g = (- params.w_com   * (Jcom.T    @ (params.k_com   * e_com))
-         - params.w_foot  * (J_mf.T    @ (params.k_foot  * e_mf))
-         - params.w_foot * (J_ff.T @ (params.k_foot * e_ff))
-         - params.w_torso * (J_torso.T  @ (params.k_torso * e_torso)))
+    g = (- Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
+         # - params.w_foot * (J_mf.T @ e_mf)
+         # - params.w_foot * (J_ff.T @ e_ff)
+         # - params.w_torso * (J_torso.T @ e_torso))
 
     dq = solve_qp(P=H, q=g, A=None, b=None, solver="osqp")
+
     q_next = pin.integrate(params.model, q, dq)
+
     return q_next, dq
 
 
@@ -549,7 +553,7 @@ if __name__ == "__main__":
             q = q_new
         else:
             params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
-                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=100.0, mu=1e-3, dt=dt, k_torso=0.5,
+                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=10.0, mu=1e-3, dt=dt, k_torso=0.5,
                               k_com=0.5, k_foot=0.5)
 
             oMf_rf = oMf_rf0.copy()
