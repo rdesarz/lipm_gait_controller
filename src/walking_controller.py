@@ -166,21 +166,26 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     # Replace desired yaw by current yaw -> zero yaw error implicitly
     # Keep only roll,pitch components of angular error (indices 0,1) and rows (0,1) of J
     S = np.zeros((2, 6))
-    S[0, 0] = 1.0
-    S[1, 1] = 1.0
+    S[0, 3] = 1.0
+    S[1, 4] = 1.0
     e_torso = S @ e_torso6
     J_torso = S @ J_torso6
 
     # -------- Quadratic cost --------
-    H = (Jcom.T @ (np.eye(3) * params.w_com) @ Jcom)
-         # + params.w_foot * (J_mf.T @ J_mf)
-         # + params.w_foot * (J_ff.T @ J_ff)
-         # + params.w_torso * (J_torso.T @ J_torso))
+    H = ((Jcom.T @ (np.eye(3) * params.w_com) @ Jcom + params.k_com * np.eye(nv))
+         #+ (J_ff.T @ (np.eye(6) * params.w_foot) @ J_ff + params.k_foot * np.eye(nv))
+         + (J_torso.T @ (np.eye(2) * params.w_torso) @ J_torso + params.k_torso * np.eye(nv)))
+         # + (J_mf.T @ (np.eye(6) * params.w_foot) @ J_mf + params.k_foot * np.eye(nv)))
+    # + params.w_foot * (J_ff.T @ J_ff)
+    # + params.w_torso * (J_torso.T @ J_torso))
 
-    g = (- Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
-         # - params.w_foot * (J_mf.T @ e_mf)
-         # - params.w_foot * (J_ff.T @ e_ff)
-         # - params.w_torso * (J_torso.T @ e_torso))
+    g = ((- Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
+         #- (J_ff.T @ (np.eye(6) * params.w_foot) @ e_ff)
+         - (J_torso.T @ (np.eye(2) * params.w_torso) @ e_torso))
+         # - (J_mf.T @ (np.eye(6) * params.w_foot) @ e_mf))
+    # - params.w_foot * (J_mf.T @ e_mf)
+    # - params.w_foot * (J_ff.T @ e_ff)
+    # - params.w_torso * (J_torso.T @ e_torso))
 
     dq = solve_qp(P=H, q=g, A=None, b=None, solver="osqp")
 
@@ -544,8 +549,8 @@ if __name__ == "__main__":
 
         if phases[k] < 0.0:
             params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model,
-                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=100.0, mu=1e-3, dt=dt, k_torso=0.5,
-                              k_com=0.5, k_foot=0.5)
+                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=10.0, mu=1e-3, dt=dt, k_torso=0.5,
+                              k_com=0.2, k_foot=0.2)
 
             oMf_lf = oMf_lf0.copy()
             oMf_lf.translation = lf_path[k]
@@ -553,8 +558,8 @@ if __name__ == "__main__":
             q = q_new
         else:
             params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
-                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=10.0, mu=1e-3, dt=dt, k_torso=0.5,
-                              k_com=0.5, k_foot=0.5)
+                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=10.0, mu=1e-3, dt=dt, k_torso=1e-3,
+                              k_com=1e-3, k_foot=0.2)
 
             oMf_rf = oMf_rf0.copy()
             oMf_rf.translation = rf_path[k]
