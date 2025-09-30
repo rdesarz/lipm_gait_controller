@@ -173,14 +173,14 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
 
     # -------- Quadratic cost --------
     H = ((Jcom.T @ (np.eye(3) * params.w_com) @ Jcom + params.k_com * np.eye(nv))
-         #+ (J_ff.T @ (np.eye(6) * params.w_foot) @ J_ff + params.k_foot * np.eye(nv))
+         + (J_ff.T @ (np.eye(6) * params.w_foot) @ J_ff + params.k_foot * np.eye(nv))
          + (J_torso.T @ (np.eye(2) * params.w_torso) @ J_torso + params.k_torso * np.eye(nv)))
          # + (J_mf.T @ (np.eye(6) * params.w_foot) @ J_mf + params.k_foot * np.eye(nv)))
     # + params.w_foot * (J_ff.T @ J_ff)
     # + params.w_torso * (J_torso.T @ J_torso))
 
     g = ((- Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
-         #- (J_ff.T @ (np.eye(6) * params.w_foot) @ e_ff)
+         - (J_ff.T @ (np.eye(6) * params.w_foot) @ e_ff)
          - (J_torso.T @ (np.eye(2) * params.w_torso) @ e_torso))
          # - (J_mf.T @ (np.eye(6) * params.w_foot) @ e_mf))
     # - params.w_foot * (J_mf.T @ e_mf)
@@ -558,8 +558,8 @@ if __name__ == "__main__":
             q = q_new
         else:
             params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
-                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=10.0, mu=1e-3, dt=dt, k_torso=1e-3,
-                              k_com=1e-3, k_foot=0.2)
+                              data=red_data, w_torso=10.0, w_com=10.0, w_foot=10.0, mu=1e-3, dt=dt, k_torso=0.5,
+                              k_com=0.5, k_foot=0.2)
 
             oMf_rf = oMf_rf0.copy()
             oMf_rf.translation = rf_path[k]
