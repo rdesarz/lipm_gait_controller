@@ -121,13 +121,13 @@ def se3_task_error_and_jac(model, data, q, frame_id, M_des):
     e6 = pin.log(iMd).vector  # right-invariant pose error in LOCAL frame
 
     # Geometric Jacobian in LOCAL frame
-    Jloc = pin.computeFrameJacobian(model, data, q, frame_id, pin.LOCAL)
+    Jb = pin.computeFrameJacobian(model, data, q, frame_id, pin.LOCAL)
 
     # Right Jacobian of the log map (Pinocchio’s Jlog6)
-    Jlog = pin.Jlog6(iMd.inverse())  # maps LOCAL spatial vel -> d(log) in se(3)
+    Jl = -pin.Jlog6(iMd.inverse())  # maps LOCAL spatial vel -> d(log) in se(3)
 
     # Task Jacobian
-    Jtask = - Jlog @ Jloc  # minus sign per right-invariant residual
+    Jtask = Jl @ Jb  # minus sign per right-invariant residual
 
     return e6, Jtask
 
