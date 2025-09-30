@@ -113,62 +113,75 @@ class QPParams:
     mu: float
     dt: float
 
+def se3_task_error_and_jac(model, data, q, frame_id, M_des):
+    # Pose of frame i in world; LOCAL frame convention (right differentiation)
+    oMi = data.oMf[frame_id]              # requires updateFramePlacements()
+    iMd = oMi.actInv(M_des)               # ^i M_d  = oMi^{-1} * oMdes
+    e6  = pin.log(iMd).vector             # right-invariant pose error in LOCAL frame
+
+    # Geometric Jacobian in LOCAL frame
+    Jloc = pin.computeFrameJacobian(model, data, q, frame_id, pin.LOCAL)
+
+    # Right Jacobian of the log map (Pinocchio’s Jlog6)
+    Jlog = pin.Jlog6(iMd.inverse())       # maps LOCAL spatial vel -> d(log) in se(3)
+
+    # Task Jacobian
+    Jtask = - Jlog @ Jloc                 # minus sign per right-invariant residual
+
+    return e6, Jtask
+
 
 def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
-    # Compute the frame placements based on the input configuration
     pin.forwardKinematics(params.model, params.data, q)
     pin.updateFramePlacements(params.model, params.data)
 
-    world_frame = pin.ReferenceFrame.LOCAL_WORLD_ALIGNED
-
-    # Compute CoM data
-    com = pin.centerOfMass(params.model, params.data, q)
-    Jcom = pin.jacobianCenterOfMass(params.model, params.data, q)
-    e_com = com_target - com
-
-    # Compute fixed foot data
-    oMf_ff0 = params.data.oMf[params.fixed_foot_frame].copy()
-    J_ff = pin.computeFrameJacobian(params.model, params.data, q, params.fixed_foot_frame, world_frame)
-    e_ff = pin.log(params.data.oMf[params.fixed_foot_frame].inverse() * oMf_ff0).vector
-
-    # Compute moving foot data
-    J_mf = pin.computeFrameJacobian(params.model, params.data, q, params.moving_foot_frame, world_frame)
-    e_mf = pin.log(params.data.oMf[params.moving_foot_frame].inverse() * oMf_target).vector
-
-    # Compute torso data
-    R = params.data.oMf[params.torso_frame].rotation
-    roll, pitch, yaw = Rotation.from_matrix(R).as_euler('xyz', degrees=False)
-    Rdes = Rotation.from_euler('xyz', [0, 0, yaw]).as_matrix()
-    e_rot = pin.log3(R.T @ Rdes)
-    S = np.array([[1.0, 0.0, 0.0],  # select roll,pitch only
-                  [0.0, 1.0, 0.0]])
-    J_torso = pin.computeFrameJacobian(params.model, params.data, q, params.torso_frame, world_frame)[3:6, :]
-    A_torso = S @ J_torso
-
-    # Compute cost
     nv = params.model.nv
 
+    # -------- CoM task (Euclidean) --------
+    com  = pin.centerOfMass(params.model, params.data, q)
+    Jcom = pin.jacobianCenterOfMass(params.model, params.data, q)  # (3,nv)
+    e_com = com_target - com
+
+    # -------- Fixed-foot hard contact (6D) --------
+    # Drive residual to zero at velocity level: J_ff * dq = -Kc * e_ff
+    e_ff, J_ff = se3_task_error_and_jac(
+        params.model, params.data, q, params.fixed_foot_frame,
+        params.data.oMf[params.fixed_foot_frame].copy()  # hold current pose
+    )
+
+    # -------- Moving-foot soft pose task (6D) --------
+    e_mf, J_mf = se3_task_error_and_jac(
+        params.model, params.data, q, params.moving_foot_frame, oMf_target
+    )
+
+    # -------- Torso roll/pitch soft task --------
+    # Select angular part of e_torso and corresponding Jacobian rows
+    e_torso6, J_torso6 = se3_task_error_and_jac(
+        params.model, params.data, q, params.torso_frame,
+        # keep current yaw: project desired as same yaw in world
+        pin.SE3(params.data.oMf[params.torso_frame].rotation,  # overwritten right below
+                params.data.oMf[params.torso_frame].translation)
+    )
+    # Replace desired yaw by current yaw -> zero yaw error implicitly
+    # Keep only roll,pitch components of angular error (indices 0,1) and rows (0,1) of J
+    S = np.zeros((2, 6)); S[0,0] = 1.0; S[1,1] = 1.0
+    e_torso = S @ e_torso6
+    J_torso = S @ J_torso6
+
+    # -------- Quadratic cost --------
     H = (params.mu * np.eye(nv)
-         + params.w_com * (Jcom.T @ Jcom)
-         + params.w_torso * (A_torso.T @ A_torso)
-         + params.w_foot * (J_mf.T @ J_mf)
-         + params.w_foot * (J_ff.T @ J_ff))
+         + params.w_com   * (Jcom.T   @ Jcom)
+         + params.w_foot  * (J_mf.T   @ J_mf)
+         + params.w_foot * (J_ff.T @ J_ff)
+         + params.w_torso * (J_torso.T @ J_torso))
 
-    g = (- params.w_com * (Jcom.T @ (params.k_com * e_com / params.dt))
-         - params.w_torso * (A_torso.T @ (S @ (params.k_torso * e_rot / params.dt)))
-         - params.w_foot * (J_mf.T @ (params.k_foot * e_mf / params.dt))
-         - params.w_foot * (J_ff.T @ (params.k_foot * e_ff / params.dt)))
+    g = (- params.w_com   * (Jcom.T    @ (params.k_com   * e_com))
+         - params.w_foot  * (J_mf.T    @ (params.k_foot  * e_mf))
+         - params.w_foot * (J_ff.T @ (params.k_foot * e_ff))
+         - params.w_torso * (J_torso.T  @ (params.k_torso * e_torso)))
 
-    # Compute equality constraints
-    Aeq = None
-    beq = None
-
-    # Solve QP
-    dq = solve_qp(P=H, q=g, A=Aeq, b=beq, solver="osqp")
-
-    # Integrate to get next q
+    dq = solve_qp(P=H, q=g, A=None, b=None, solver="osqp")
     q_next = pin.integrate(params.model, q, dq)
-
     return q_next, dq
 
 
