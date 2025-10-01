@@ -179,7 +179,7 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
          + (J_mf.T @ (np.eye(6) * params.w_foot) @ J_mf))
 
     g = ((- Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
-         - (J_torso.T @ (np.eye(3) * params.w_torso) @ e_torso)
+         + (J_torso.T @ (np.eye(3) * params.w_torso) @ e_torso)
          + (J_mf.T @ (np.eye(6) * params.w_foot) @ e_mf)
          + (J_ff.T @ (np.eye(6) * params.w_foot) @ e_ff))
 
