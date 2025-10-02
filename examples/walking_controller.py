@@ -8,39 +8,9 @@ from shapely.ops import nearest_points
 import pinocchio as pin
 from pinocchio.visualize import MeshcatVisualizer
 
-from lipm_walking_controller.controller import initialize_preview_control
+from lipm_walking_controller.controller import initialize_preview_control, compute_zmp_ref
 from lipm_walking_controller.inverse_kinematic import qp_inverse_kinematics, QPParams
 from lipm_walking_controller.model import set_joint
-
-
-def compute_zmp_ref(t, com_initial_pose, steps, ss_t, ds_t):
-    T = len(t)
-    zmp_ref = np.zeros([T, 2])
-
-    # Step on the first foot
-    mask = t < ds_t
-    alpha = t[mask] / ds_t
-    zmp_ref[mask, :] = (1 - alpha)[:, None] * com_initial_pose + alpha[:, None] * steps[0]
-
-    # Alternate between foot
-    for idx, (current_step, next_step) in enumerate(zip(steps[:-1], steps[1:])):
-        # Compute current time range
-        t_start = ds_t + idx * (ss_t + ds_t)
-
-        # Add single support phase
-        zmp_ref[(t >= t_start) & (t < t_start + ss_t)] = current_step
-
-        # Add double support phase
-        mask = (t >= t_start + ss_t) & (t < t_start + ss_t + ds_t)
-        alpha = (t[mask] - (t_start + ss_t)) / ds_t
-        zmp_ref[mask, :] = (1 - alpha)[:, None] * current_step + alpha[:, None] * next_step
-
-    # Last phase is single support at last foot pose
-    mask = t >= ds_t + (len(steps) - 1) * (ss_t + ds_t)
-    zmp_ref[mask, :] = steps[-1]
-
-    return zmp_ref
-
 
 def compute_double_support_polygon(current_foot_pose, next_foot_pose, foot_shape):
     curent_foot = affinity.translate(foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1])
