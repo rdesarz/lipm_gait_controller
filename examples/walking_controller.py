@@ -178,13 +178,6 @@ if __name__ == "__main__":
         x[k + 1, 1:] = (A @ x[k, 1:] + B.ravel() * u[k, 0])
         y[k + 1, 1:] = (A @ y[k, 1:] + B.ravel() * u[k, 1])
 
-        # Plot
-        com_xy_hist.append([x[k + 1, 1], y[k + 1, 1]])
-        zmp_xy_hist.append([zmp_ref[k, 0], zmp_ref[k, 1]])
-
-        com_arr = np.asarray(com_xy_hist)
-        zmp_arr = np.asarray(zmp_xy_hist)
-
         com_target = np.array([x[k, 1], y[k, 1], lf_initial_pose[2] + zc])
 
         params = QPParams(fixed_foot_frame=talos.right_foot_id, moving_foot_frame=talos.left_foot_id,
@@ -208,8 +201,8 @@ if __name__ == "__main__":
         pin.forwardKinematics(talos.model, talos.data, talos.q)
         pin.updateFramePlacements(talos.model, talos.data)
 
+        # Display the path of the CoM in the viewer
         com = pin.centerOfMass(talos.model, talos.data, talos.q)
-
         n = viz.viewer[f"world/com_traj/pt_{k:05d}"]
         n.set_object(meshcat.geometry.Sphere(0.01), meshcat.geometry.MeshLambertMaterial(color=0xff0000))
         n.set_transform(tf.translation_matrix(com))
@@ -222,6 +215,13 @@ if __name__ == "__main__":
         elapsed_dt = stop - start
         remaining_dt = dt - elapsed_dt
         sleep(max(0.0, remaining_dt))
+
+        # Plot
+        com_xy_hist.append([x[k + 1, 1], y[k + 1, 1]])
+        zmp_xy_hist.append([zmp_ref[k, 0], zmp_ref[k, 1]])
+
+        com_arr = np.asarray(com_xy_hist)
+        zmp_arr = np.asarray(zmp_xy_hist)
 
         if k % draw_every == 0 and enable_live_plot:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
