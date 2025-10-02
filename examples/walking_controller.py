@@ -1,4 +1,4 @@
-import math, os, sys
+import math
 from time import sleep, clock_gettime
 import meshcat
 import numpy as np
@@ -11,7 +11,7 @@ import meshcat.transformations as tf
 from lipm_walking_controller.controller import initialize_preview_control, compute_zmp_ref
 from lipm_walking_controller.foot import compute_feet_path_and_poses, get_active_polygon
 from lipm_walking_controller.inverse_kinematic import qp_inverse_kinematics, QPParams
-from lipm_walking_controller.model import set_joint
+from lipm_walking_controller.model import Talos
 
 if __name__ == "__main__":
     # Parameters
@@ -41,69 +41,23 @@ if __name__ == "__main__":
 
     A, B, C, Gd, Gx, Gi = initialize_preview_control(dt, zc, g, Qe, Qx, R, n_preview_steps)
 
-    # Load full model
-    PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
-    URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")
-
-    if not os.path.isfile(URDF):
-        print(f"URDF not found: {URDF}\nSet PKG_PARENT or clone talos_data.", file=sys.stderr)
-        sys.exit(1)
-
-    full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(URDF, PKG_PARENT, pin.JointModelFreeFlyer())
-
     # Initialize the model position
-    q = pin.neutral(full_model)
-
-    # Position the arms
-    set_joint(q, full_model, "leg_left_4_joint", 0.0)
-    set_joint(q, full_model, "leg_right_4_joint", 0.0)
-    set_joint(q, full_model, "arm_right_4_joint", -1.2)
-    set_joint(q, full_model, "arm_left_4_joint", -1.2)
-
-    # We lock joints of the upper body
-    joints_to_lock = [i for i in range(14, 48)]
-
-    # Build reduced model
-    red_model, red_geom = pin.buildReducedModel(full_model, full_col_model, joints_to_lock, q)
-    _, red_vis = pin.buildReducedModel(full_model, full_vis_model, joints_to_lock, q)
-    red_data = red_model.createData()
+    talos = Talos(path_to_model="~/projects")
 
     # Initialize visualizer
-    viz = MeshcatVisualizer(red_model, red_geom, red_vis)
+    viz = MeshcatVisualizer(talos.model, talos.geom, talos.vis)
     try:
         viz.initViewer(open=True)
         viz.loadViewerModel()
     except Exception:
         viz = None
 
-    LF = red_model.getFrameId("left_sole_link")
-    RF = red_model.getFrameId("right_sole_link")
-    TORSO = red_model.getFrameId("torso_1_link")
-
-    # Initialize reduced model
-    q = pin.neutral(red_model)
-
-    # Initialize legs position
-    set_joint(q, red_model, "leg_left_1_joint", 0.0)
-    set_joint(q, red_model, "leg_left_2_joint", 0.0)
-    set_joint(q, red_model, "leg_left_3_joint", -0.5)
-    set_joint(q, red_model, "leg_left_4_joint", 1.0)
-    set_joint(q, red_model, "leg_left_5_joint", -0.6)
-
-    set_joint(q, red_model, "leg_right_1_joint", 0.0)
-    set_joint(q, red_model, "leg_right_2_joint", 0.0)
-    set_joint(q, red_model, "leg_right_3_joint", -0.5)
-    set_joint(q, red_model, "leg_right_4_joint", 1.0)
-    set_joint(q, red_model, "leg_right_5_joint", -0.6)
-
-    pin.forwardKinematics(red_model, red_data, q)
-    pin.updateFramePlacements(red_model, red_data)
-    oMf_rf0 = red_data.oMf[RF].copy()
-    oMf_lf0 = red_data.oMf[LF].copy()
+    oMf_rf0 = talos.data.oMf[talos.right_foot_id].copy()
+    oMf_lf0 = talos.data.oMf[talos.left_foot_id].copy()
 
     lf_initial_pose = oMf_lf0.translation
     rf_initial_pose = oMf_rf0.translation
-    com_initial_pose = pin.centerOfMass(red_model, red_data, q)
+    com_initial_pose = pin.centerOfMass(talos.model, talos.data, talos.q)
 
     # Build ZMP reference to track
     t, lf_path, rf_path, steps_pose, phases = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps,
@@ -233,36 +187,35 @@ if __name__ == "__main__":
 
         com_target = np.array([x[k, 1], y[k, 1], lf_initial_pose[2] + zc])
 
-        params = QPParams(fixed_foot_frame=RF, moving_foot_frame=LF, torso_frame=TORSO, model=red_model,
-                          data=red_data, w_torso=10.0, w_com=10.0, w_mf=10.0, w_ff=1000.0, mu=1e-5, dt=dt)
+        params = QPParams(fixed_foot_frame=talos.right_foot_id, moving_foot_frame=talos.left_foot_id,
+                          torso_frame=talos.torso_id, model=talos.model,
+                          data=talos.data, w_torso=10.0, w_com=10.0, w_mf=10.0, w_ff=1000.0, mu=1e-5, dt=dt)
         if phases[k] < 0.0:
-            params.fixed_foot_frame = RF
-            params.moving_foot_frame = LF
+            params.fixed_foot_frame = talos.right_foot_id
+            params.moving_foot_frame = talos.left_foot_id
 
             oMf_lf = pin.SE3(oMf_lf0.rotation, lf_path[k])
-            q_new, dq = qp_inverse_kinematics(q, com_target, oMf_lf, params)
-            q = q_new
+            q_new, dq = qp_inverse_kinematics(talos.q, com_target, oMf_lf, params)
+            talos.q = q_new
         else:
-            params.fixed_foot_frame = LF
-            params.moving_foot_frame = RF
+            params.fixed_foot_frame = talos.left_foot_id
+            params.moving_foot_frame = talos.right_foot_id
 
             oMf_rf = pin.SE3(oMf_rf0.rotation, rf_path[k])
-            q_new, dq = qp_inverse_kinematics(q, com_target, oMf_rf, params)
-            q = q_new
+            q_new, dq = qp_inverse_kinematics(talos.q, com_target, oMf_rf, params)
+            talos.q = q_new
 
-        pin.forwardKinematics(red_model, red_data, q)
-        pin.updateFramePlacements(red_model, red_data)
-        com_final = pin.centerOfMass(red_model, red_data, q)
-        lf_final = red_data.oMf[LF].translation
+        pin.forwardKinematics(talos.model, talos.data, talos.q)
+        pin.updateFramePlacements(talos.model, talos.data)
 
-        com = pin.centerOfMass(red_model, red_data, q)
+        com = pin.centerOfMass(talos.model, talos.data, talos.q)
 
         n = viz.viewer[f"world/com_traj/pt_{k:05d}"]
         n.set_object(meshcat.geometry.Sphere(0.01), meshcat.geometry.MeshLambertMaterial(color=0xff0000))
         n.set_transform(tf.translation_matrix(com))
 
         if viz:
-            viz.display(q)
+            viz.display(talos.q)
 
         # Compute the remaining time to render in real time the visualization
         stop = clock_gettime(0)
