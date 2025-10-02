@@ -235,14 +235,6 @@ if __name__ == "__main__":
 
     full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(URDF, PKG_PARENT, pin.JointModelFreeFlyer())
 
-    # List joints
-    for j_id, j_name in enumerate(full_model.names):
-        print(j_id, j_name, full_model.joints[j_id].shortname())
-
-    # List frames
-    for i, frame in enumerate(full_model.frames):
-        print(i, frame.name, frame.parent, frame.type)
-
     # Initialize the model position
     q = pin.neutral(full_model)
 
