@@ -39,7 +39,7 @@ The implementation is kept minimal and educational, with a focus on clarity and 
 git clone https://github.com/rdesarz/lipm-walking-controller.git
 cd lipm-walking-controller
 pip install -r requirements.txt
-python examples/lipm_preview_control.py
+python examples/step_2_lipm_preview_control.py
 ```
 
 ### Inverse kinematics
@@ -49,7 +49,7 @@ git clone https://github.com/rdesarz/lipm-walking-controller.git
 cd lipm-walking-controller
 pip install -r requirements.txt
 git clone https://github.com/stack-of-tasks/talos-data.git talos_data
-python examples/squat_inverse_kinematics.py
+python examples/step_3_squat_inverse_kinematics.py
 ```
 
 ---
