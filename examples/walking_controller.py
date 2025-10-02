@@ -10,6 +10,7 @@ from pinocchio.visualize import MeshcatVisualizer
 
 from lipm_walking_controller.controller import initialize_preview_control
 from lipm_walking_controller.inverse_kinematic import qp_inverse_kinematics, QPParams
+from lipm_walking_controller.model import set_joint
 
 
 def compute_zmp_ref(t, com_initial_pose, steps, ss_t, ds_t):
@@ -218,13 +219,6 @@ if __name__ == "__main__":
     update_frequency = 0.02
     draw_every = max(1, int(update_frequency / dt))
 
-
-    def set_joint(q, joint_name, val):
-        jid = full_model.getJointId(joint_name)
-        if jid > 0 and full_model.joints[jid].nq == 1:
-            q[full_model.joints[jid].idx_q] = val
-
-
     # Load full model
     PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
     URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")
@@ -239,10 +233,10 @@ if __name__ == "__main__":
     q = pin.neutral(full_model)
 
     # Position the arms
-    set_joint(q, "leg_left_4_joint", 0.0)
-    set_joint(q, "leg_right_4_joint", 0.0)
-    set_joint(q, "arm_right_4_joint", -1.2)
-    set_joint(q, "arm_left_4_joint", -1.2)
+    set_joint(q, full_model, "leg_left_4_joint", 0.0)
+    set_joint(q, full_model, "leg_right_4_joint", 0.0)
+    set_joint(q, full_model, "arm_right_4_joint", -1.2)
+    set_joint(q, full_model, "arm_left_4_joint", -1.2)
 
     # We lock joints of the upper body
     joints_to_lock = [i for i in range(14, 48)]
@@ -268,17 +262,17 @@ if __name__ == "__main__":
     q = pin.neutral(red_model)
 
     # Initialize legs position
-    set_joint(q, "leg_left_1_joint", 0.0)
-    set_joint(q, "leg_left_2_joint", 0.0)
-    set_joint(q, "leg_left_3_joint", -0.5)
-    set_joint(q, "leg_left_4_joint", 1.0)
-    set_joint(q, "leg_left_5_joint", -0.6)
+    set_joint(q, red_model, "leg_left_1_joint", 0.0)
+    set_joint(q, red_model, "leg_left_2_joint", 0.0)
+    set_joint(q, red_model, "leg_left_3_joint", -0.5)
+    set_joint(q, red_model, "leg_left_4_joint", 1.0)
+    set_joint(q, red_model, "leg_left_5_joint", -0.6)
 
-    set_joint(q, "leg_right_1_joint", 0.0)
-    set_joint(q, "leg_right_2_joint", 0.0)
-    set_joint(q, "leg_right_3_joint", -0.5)
-    set_joint(q, "leg_right_4_joint", 1.0)
-    set_joint(q, "leg_right_5_joint", -0.6)
+    set_joint(q, red_model,"leg_right_1_joint", 0.0)
+    set_joint(q, red_model,"leg_right_2_joint", 0.0)
+    set_joint(q, red_model,"leg_right_3_joint", -0.5)
+    set_joint(q, red_model,"leg_right_4_joint", 1.0)
+    set_joint(q, red_model,"leg_right_5_joint", -0.6)
 
     pin.forwardKinematics(red_model, red_data, q)
     pin.updateFramePlacements(red_model, red_data)
