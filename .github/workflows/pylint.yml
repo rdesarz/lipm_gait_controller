@@ -3,7 +3,7 @@ name: Pylint
 on: [push]
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     steps:
     - name: Analyse with PyLint
@@ -20,7 +20,7 @@ jobs:
         #   ...
         #
         # Required
-        lint-path: examples
+        lint-path: examples lipm_walking_controller
 
         # Version of the Python interpreter which will install all requirements of your project
         # and lint the package(s) or python file(s) specified with the `lint-path` argument
