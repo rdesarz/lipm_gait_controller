@@ -176,7 +176,8 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     H = ((Jcom.T @ (np.eye(3) * params.w_com) @ Jcom)
          + (J_torso.T @ (np.eye(3) * params.w_torso) @ J_torso)
          + (J_ff.T @ (np.eye(6) * params.w_foot) @ J_ff)
-         + (J_mf.T @ (np.eye(6) * params.w_foot) @ J_mf))
+         + (J_mf.T @ (np.eye(6) * params.w_foot) @ J_mf)
+         + np.eye(nv) * params.mu)
 
     g = ((- Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
          + (J_torso.T @ (np.eye(3) * params.w_torso) @ e_torso)
@@ -553,7 +554,6 @@ if __name__ == "__main__":
             oMf_lf = pin.SE3(oMf_lf0.rotation, lf_path[k])
             q_new, dq = qp_inverse_kinematics(q, com_target, oMf_lf, params)
             q = q_new
-
         else:
             params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
                               data=red_data, w_torso=10.0, w_com=10.0, w_foot=10.0, mu=1e-3, dt=dt, k_torso=0.5,
