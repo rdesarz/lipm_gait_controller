@@ -7,7 +7,7 @@ the Zero-Moment Point (ZMP)**, following _Kajita et al. “Biped Walking Pattern
 
 The figure below shows an example of the simulated trajectory of the Center of Mass versus the ZMP reference
 
-<p align="center"><b><code>![pylint]()</code></b> or <b><code>[![pylint]()](https://redirect/link)</code></b></p>
+[![pylint]()](https://redirect/link)
 
 ---
 
