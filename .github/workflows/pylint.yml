@@ -43,7 +43,7 @@ jobs:
         # In case it is not specified, the standard lint rules are used
         #
         # Optional, Default: ''
-        pylintrc-path: .pylintrc
+        pylintrc-path: .github/workflows/.pylintrc
 
         # Text to display in the badge
         #
