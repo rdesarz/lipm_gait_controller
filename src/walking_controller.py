@@ -1,7 +1,7 @@
 import math, os, sys
 from dataclasses import dataclass
 from typing import Any
-from time import sleep
+from time import sleep, clock_gettime
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -279,7 +279,7 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
 
 if __name__ == "__main__":
     # Parameters
-    dt = 0.005  # Delta of time of the model simulation
+    dt = 0.02  # Delta of time of the model simulation
     g = 9.81  # Gravity
     zc = 0.89  # Height of the COM
     w = math.sqrt(g / zc)
@@ -520,6 +520,8 @@ if __name__ == "__main__":
 
     frames = []
     for k in range(T):
+        start = clock_gettime(0)
+
         # Get zmp ref horizon
         zmp_ref_horizon = zmp_padded[k + 1:k + n_preview_steps]
 
@@ -551,6 +553,7 @@ if __name__ == "__main__":
             oMf_lf = pin.SE3(oMf_lf0.rotation, lf_path[k])
             q_new, dq = qp_inverse_kinematics(q, com_target, oMf_lf, params)
             q = q_new
+
         else:
             params = QPParams(fixed_foot_frame=LF, moving_foot_frame=RF, torso_frame=TORSO, model=red_model,
                               data=red_data, w_torso=10.0, w_com=10.0, w_foot=10.0, mu=1e-3, dt=dt, k_torso=0.5,
@@ -566,7 +569,14 @@ if __name__ == "__main__":
         lf_final = red_data.oMf[LF].translation
         if viz:
             viz.display(q)
-            # sleep(dt)
+
+        # Compute the remaining time to render in real time the visualization
+        stop = clock_gettime(0)
+        elapsed_dt = stop - start
+        remaining_dt = dt - elapsed_dt
+        if remaining_dt < 0.0:
+            print(remaining_dt)
+        sleep(max(0.0, remaining_dt))
 
         if k % draw_every == 0 and enable_live_plot:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
