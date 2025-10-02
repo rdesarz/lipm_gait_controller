@@ -10,7 +10,8 @@ from shapely.ops import nearest_points
 from scipy.linalg import solve_discrete_are
 import pinocchio as pin
 from pinocchio.visualize import MeshcatVisualizer
-from qpsolvers import solve_qp
+
+from lipm_walking_controller.inverse_kinematic import qp_inverse_kinematics, QPParams
 
 
 def compute_zmp_ref(t, com_initial_pose, steps, ss_t, ds_t):
@@ -94,98 +95,6 @@ def clamp_to_polygon(u_xy, poly: Polygon):
     q = nearest_points(poly.exterior, p)[0]
 
     return np.array([q.x, q.y])
-
-
-@dataclass
-class QPParams:
-    fixed_foot_frame: str
-    moving_foot_frame: str
-    torso_frame: str
-    model: pin.Model
-    data: Any
-    w_torso: float
-    w_com: float
-    w_mf: float
-    w_ff: float
-    mu: float
-    dt: float
-
-
-def se3_task_error_and_jacobian(model, data, q, frame_id, M_des):
-    # Pose of frame i in world; LOCAL frame convention (right differentiation)
-    oMi = data.oMf[frame_id]  # requires updateFramePlacements()
-    iMd = oMi.actInv(M_des)  # ^i M_d  = oMi^{-1} * oMdes
-    e6 = pin.log(iMd).vector  # right-invariant pose error in LOCAL frame
-
-    # Geometric Jacobian in LOCAL frame
-    Jb = pin.computeFrameJacobian(model, data, q, frame_id, pin.LOCAL)
-
-    # Right Jacobian of the log map (Pinocchio’s Jlog6)
-    Jl = -pin.Jlog6(iMd.inverse())  # maps LOCAL spatial vel -> d(log) in se(3)
-
-    # Task Jacobian
-    Jtask = Jl @ Jb  # minus sign per right-invariant residual
-
-    return e6, Jtask
-
-
-def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
-    pin.forwardKinematics(params.model, params.data, q)
-    pin.updateFramePlacements(params.model, params.data)
-
-    nv = params.model.nv
-
-    # -------- CoM task (Euclidean) --------
-    com = pin.centerOfMass(params.model, params.data, q)
-    Jcom = pin.jacobianCenterOfMass(params.model, params.data, q)  # (3,nv)
-    e_com = com_target - com
-
-    # -------- Fixed-foot hard contact (6D) --------
-    # Drive residual to zero at velocity level: J_ff * dq = -Kc * e_ff
-    e_ff, J_ff = se3_task_error_and_jacobian(
-        params.model, params.data, q, params.fixed_foot_frame,
-        params.data.oMf[params.fixed_foot_frame].copy()  # hold current pose
-    )
-
-    # -------- Moving-foot soft pose task (6D) --------
-    e_mf, J_mf = se3_task_error_and_jacobian(
-        params.model, params.data, q, params.moving_foot_frame, oMf_target
-    )
-
-    # -------- Torso roll/pitch soft task --------
-    # Select angular part of e_torso and corresponding Jacobian rows
-    e_torso6, J_torso6 = se3_task_error_and_jacobian(
-        params.model, params.data, q, params.torso_frame,
-        # keep current yaw: project desired as same yaw in world
-        pin.SE3(params.data.oMf[params.torso_frame].rotation,  # overwritten right below
-                params.data.oMf[params.torso_frame].translation)
-    )
-    # Replace desired yaw by current yaw -> zero yaw error implicitly
-    # Keep only roll,pitch components of angular error (indices 0,1) and rows (0,1) of J
-    S = np.zeros((3, 6))
-    S[0, 3] = 1.0
-    S[1, 4] = 1.0
-    S[2, 5] = 1.0
-    e_torso = S @ e_torso6
-    J_torso = S @ J_torso6
-
-    # -------- Quadratic cost --------
-    H = ((Jcom.T @ (np.eye(3) * params.w_com) @ Jcom)
-         + (J_torso.T @ (np.eye(3) * params.w_torso) @ J_torso)
-         + (J_ff.T @ (np.eye(6) * params.w_ff) @ J_ff)
-         + (J_mf.T @ (np.eye(6) * params.w_mf) @ J_mf)
-         + np.eye(nv) * params.mu)
-
-    g = ((- Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
-         + (J_torso.T @ (np.eye(3) * params.w_torso) @ e_torso)
-         + (J_mf.T @ (np.eye(6) * params.w_mf) @ e_mf)
-         + (J_ff.T @ (np.eye(6) * params.w_ff) @ e_ff))
-
-    dq = solve_qp(P=H, q=g, solver="osqp")
-
-    q_next = pin.integrate(params.model, q, dq)
-
-    return q_next, dq
 
 
 def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot):
