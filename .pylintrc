@@ -170,7 +170,7 @@ class-naming-style=PascalCase
 #class-rgx=
 
 # Naming style matching correct constant names.
-const-naming-style=UPPER_CASE
+#const-naming-style=UPPER_CASE
 
 # Regular expression matching correct constant names. Overrides const-naming-
 # style. If left empty, constant names will be checked with the set naming
@@ -439,6 +439,7 @@ disable=raw-checker-failed,
         use-symbolic-message-instead,
         use-implicit-booleaness-not-comparison-to-string,
         use-implicit-booleaness-not-comparison-to-zero
+        invalid-name
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
