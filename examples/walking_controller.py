@@ -89,7 +89,7 @@ if __name__ == "__main__":
     t_ds = 0.2  # Double support phase time window
 
     foot_shape = Polygon(((0.11, 0.05), (0.11, -0.05), (-0.11, -0.05), (-0.11, 0.05)))
-    n_steps = 5
+    n_steps = 20
     l_stride = 0.3
     max_height_foot = 0.05
 
