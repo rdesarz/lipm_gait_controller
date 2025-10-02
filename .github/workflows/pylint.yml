@@ -32,7 +32,7 @@ jobs:
         #   ...
         #
         # Required
-        lint-path: src examples
+        lint-path: examples
 
         # Version of the Python interpreter which will install all requirements of your project
         # and lint the package(s) or python file(s) specified with the `lint-path` argument
