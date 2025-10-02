@@ -32,7 +32,7 @@ def se3_task_error_and_jacobian(model, data, q, frame_id, M_des):
     Jb = pin.computeFrameJacobian(model, data, q, frame_id, pin.LOCAL)
 
     # Right Jacobian of the log map (Pinocchio’s Jlog6)
-    Jl = pin.Jlog6(iMd.inverse())  # maps LOCAL spatial vel -> d(log) in se(3)
+    Jl = pin.Jlog6(iMd)  # maps LOCAL spatial vel -> d(log) in se(3)
 
     # Task Jacobian
     Jtask = Jl @ Jb  # minus sign per right-invariant residual
