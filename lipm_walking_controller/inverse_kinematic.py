@@ -9,9 +9,9 @@ from qpsolvers import solve_qp
 
 @dataclass
 class QPParams:
-    fixed_foot_frame: str
-    moving_foot_frame: str
-    torso_frame: str
+    fixed_foot_frame: int
+    moving_foot_frame: int
+    torso_frame: int
     model: pin.Model
     data: Any
     w_torso: float
@@ -94,6 +94,7 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     A_eq = J_ff
     b_eq = -e_ff
 
+    # Symmetrization of the cost matrix
     H = 0.5 * (H + H.T)
 
     dq = solve_qp(P=H, q=g, A=A_eq, b=b_eq, solver="osqp")
