@@ -574,8 +574,6 @@ if __name__ == "__main__":
         stop = clock_gettime(0)
         elapsed_dt = stop - start
         remaining_dt = dt - elapsed_dt
-        if remaining_dt < 0.0:
-            print(remaining_dt)
         sleep(max(0.0, remaining_dt))
 
         if k % draw_every == 0 and enable_live_plot:
