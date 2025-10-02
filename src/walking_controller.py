@@ -8,7 +8,6 @@ from matplotlib import pyplot as plt
 from shapely import Polygon, Point, affinity, union
 from shapely.ops import nearest_points
 from scipy.linalg import solve_discrete_are
-from scipy.spatial.transform import Rotation
 import pinocchio as pin
 from pinocchio.visualize import MeshcatVisualizer
 from qpsolvers import solve_qp
@@ -112,7 +111,7 @@ class QPParams:
     dt: float
 
 
-def se3_task_error_and_jac(model, data, q, frame_id, M_des):
+def se3_task_error_and_jacobian(model, data, q, frame_id, M_des):
     # Pose of frame i in world; LOCAL frame convention (right differentiation)
     oMi = data.oMf[frame_id]  # requires updateFramePlacements()
     iMd = oMi.actInv(M_des)  # ^i M_d  = oMi^{-1} * oMdes
@@ -143,19 +142,19 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
 
     # -------- Fixed-foot hard contact (6D) --------
     # Drive residual to zero at velocity level: J_ff * dq = -Kc * e_ff
-    e_ff, J_ff = se3_task_error_and_jac(
+    e_ff, J_ff = se3_task_error_and_jacobian(
         params.model, params.data, q, params.fixed_foot_frame,
         params.data.oMf[params.fixed_foot_frame].copy()  # hold current pose
     )
 
     # -------- Moving-foot soft pose task (6D) --------
-    e_mf, J_mf = se3_task_error_and_jac(
+    e_mf, J_mf = se3_task_error_and_jacobian(
         params.model, params.data, q, params.moving_foot_frame, oMf_target
     )
 
     # -------- Torso roll/pitch soft task --------
     # Select angular part of e_torso and corresponding Jacobian rows
-    e_torso6, J_torso6 = se3_task_error_and_jac(
+    e_torso6, J_torso6 = se3_task_error_and_jacobian(
         params.model, params.data, q, params.torso_frame,
         # keep current yaw: project desired as same yaw in world
         pin.SE3(params.data.oMf[params.torso_frame].rotation,  # overwritten right below
