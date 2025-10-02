@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from scipy.linalg import solve_discrete_are
 
 
-# Preview gain computation required for implementation of Kajita's LIPM preview control. The detail of the implementation
-# can be found in Katayama et al. (1985)
+# Preview gain computation required for implementation of # Kajita's LIPM preview control.
+# The detail of the implementation can be found in Katayama et al. (1985)
 if __name__ == "__main__":
     # Params
     T = 0.005  # 5 ms
