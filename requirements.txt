@@ -2,3 +2,6 @@ matplotlib
 numpy
 scipy
 shapely
+meshcat
+pin
+qpsolvers
