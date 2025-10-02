@@ -9,7 +9,7 @@ from pinocchio.visualize import MeshcatVisualizer
 import meshcat.transformations as tf
 
 from lipm_walking_controller.controller import initialize_preview_control, compute_zmp_ref
-from lipm_walking_controller.foot import compute_feet_path_and_poses
+from lipm_walking_controller.foot import compute_feet_path_and_poses, get_active_polygon
 from lipm_walking_controller.inverse_kinematic import qp_inverse_kinematics, QPParams
 from lipm_walking_controller.model import set_joint
 
@@ -40,13 +40,6 @@ if __name__ == "__main__":
     enable_live_plot = False
 
     A, B, C, Gd, Gx, Gi = initialize_preview_control(dt, zc, g, Qe, Qx, R, n_preview_steps)
-
-    # Simulate
-    zmp_xy_hist = []
-    com_xy_hist = []
-
-    update_frequency = 0.02
-    draw_every = max(1, int(update_frequency / dt))
 
     # Load full model
     PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
@@ -205,6 +198,13 @@ if __name__ == "__main__":
         a.grid(True)
 
     sleep(0.5)
+
+    # Simulate
+    zmp_xy_hist = []
+    com_xy_hist = []
+
+    update_frequency = 0.02
+    draw_every = max(1, int(update_frequency / dt))
 
     frames = []
     for k in range(T):
