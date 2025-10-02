@@ -1,12 +1,14 @@
 import math, os, sys
 from time import sleep, clock_gettime
 
+import meshcat
 import numpy as np
 from matplotlib import pyplot as plt
 from shapely import Polygon, Point, affinity, union
-from shapely.ops import nearest_points
+from shapely.ops import nearest_points, transform
 import pinocchio as pin
 from pinocchio.visualize import MeshcatVisualizer
+import meshcat.transformations as tf
 
 from lipm_walking_controller.controller import initialize_preview_control, compute_zmp_ref
 from lipm_walking_controller.foot_planner import compute_feet_path_and_poses
@@ -258,7 +260,7 @@ if __name__ == "__main__":
     for a in (ax_x, ax_y):
         a.grid(True)
 
-    sleep(2.0)
+    sleep(0.5)
 
     frames = []
     for k in range(T):
@@ -308,6 +310,13 @@ if __name__ == "__main__":
         pin.updateFramePlacements(red_model, red_data)
         com_final = pin.centerOfMass(red_model, red_data, q)
         lf_final = red_data.oMf[LF].translation
+
+        com = pin.centerOfMass(red_model, red_data, q)
+
+        n = viz.viewer[f"world/com_traj/pt_{k:05d}"]
+        n.set_object(meshcat.geometry.Sphere(0.01), meshcat.geometry.MeshLambertMaterial(color=0xff0000))
+        n.set_transform(tf.translation_matrix(com))
+
         if viz:
             viz.display(q)
 
@@ -337,7 +346,7 @@ if __name__ == "__main__":
             rf_x_traj_line.set_data(t[0:k + 1], rf_path[0:k + 1, 0])
             lf_x_traj_line.set_data(t[0:k + 1], lf_path[0:k + 1, 0])
 
-            plt.pause(update_frequency)
+            plt.pause(0.001)
 
             # Uncomment to save the plot
             # fig.canvas.draw()
