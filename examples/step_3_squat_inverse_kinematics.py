@@ -28,10 +28,14 @@ PKG_PARENT = os.path.expanduser(os.environ.get("PKG_PARENT", "~/projects"))
 URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")
 
 if not os.path.isfile(URDF):
-    print(f"URDF not found: {URDF}\nSet PKG_PARENT or clone talos_data.", file=sys.stderr)
+    print(
+        f"URDF not found: {URDF}\nSet PKG_PARENT or clone talos_data.", file=sys.stderr
+    )
     sys.exit(1)
 
-full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(URDF, PKG_PARENT, pin.JointModelFreeFlyer())
+full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(
+    URDF, PKG_PARENT, pin.JointModelFreeFlyer()
+)
 
 # List joints
 for j_id, j_name in enumerate(full_model.names):
@@ -54,7 +58,9 @@ set_joint(q, "arm_left_4_joint", -1.2)
 joints_to_lock = [i for i in range(14, 48)]
 
 # Build reduced model
-red_model, red_geom = pin.buildReducedModel(full_model, full_col_model, joints_to_lock, q)
+red_model, red_geom = pin.buildReducedModel(
+    full_model, full_col_model, joints_to_lock, q
+)
 _, red_vis = pin.buildReducedModel(full_model, full_vis_model, joints_to_lock, q)
 red_data = red_model.createData()
 
@@ -108,12 +114,11 @@ def apply_qp(q, com_target):
 
     # --- torso upright constraint (roll=pitch=0, yaw free) ---
     R = red_data.oMf[TORSO].rotation
-    roll, pitch, yaw = Rotation.from_matrix(R).as_euler('xyz', degrees=False)
-    Rdes = Rotation.from_euler('xyz', [0, 0, yaw]).as_matrix()
+    roll, pitch, yaw = Rotation.from_matrix(R).as_euler("xyz", degrees=False)
+    Rdes = Rotation.from_euler("xyz", [0, 0, yaw]).as_matrix()
     e_rot = pin.log3(R.T @ Rdes)  # so3 error (3,)
 
-    S = np.array([[1.0, 0.0, 0.0],  # select roll,pitch only
-                  [0.0, 1.0, 0.0]])
+    S = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])  # select roll,pitch only
 
     J_torso6 = pin.computeFrameJacobian(red_model, red_data, q, TORSO, RF_REF)
     J_torso_ang = J_torso6[3:6, :]  # (3,nv)
@@ -127,7 +132,7 @@ def apply_qp(q, com_target):
     # Compute cost
     nv = red_model.nv
     H = MU * np.eye(nv) + W_COM * (Jcom.T @ Jcom) + W_TORSO * (A_torso.T @ A_torso)
-    g = - W_COM * (Jcom.T @ e_com) - W_TORSO * (A_torso.T @ (S @ e_rot))
+    g = -W_COM * (Jcom.T @ e_com) - W_TORSO * (A_torso.T @ (S @ e_rot))
 
     # Compute equality constraints
     Aeq = np.vstack([J_rf, J_lf])

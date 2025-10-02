@@ -16,14 +16,20 @@ def clamp_to_polygon(u_xy, poly: Polygon):
 
 
 def compute_double_support_polygon(current_foot_pose, next_foot_pose, foot_shape):
-    curent_foot = affinity.translate(foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1])
-    next_foot = affinity.translate(foot_shape, xoff=next_foot_pose[0], yoff=next_foot_pose[1])
+    curent_foot = affinity.translate(
+        foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1]
+    )
+    next_foot = affinity.translate(
+        foot_shape, xoff=next_foot_pose[0], yoff=next_foot_pose[1]
+    )
 
     return union(curent_foot, next_foot).convex_hull
 
 
 def compute_single_support_polygon(current_foot_pose, foot_shape):
-    return affinity.translate(foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1])
+    return affinity.translate(
+        foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1]
+    )
 
 
 def get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape):
@@ -37,10 +43,14 @@ def get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape):
     elif tk >= (len(steps_pose) - 1) * t_step:
         return compute_single_support_polygon(steps_pose[-1], foot_shape)
     else:
-        return compute_double_support_polygon(steps_pose[i], steps_pose[i + 1], foot_shape)
+        return compute_double_support_polygon(
+            steps_pose[i], steps_pose[i + 1], foot_shape
+        )
 
 
-def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot):
+def compute_feet_path_and_poses(
+    rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot
+):
     # The sequence is the following:
     # Start with a double support phase to switch CoM on right foot
     # Then n_steps, for each step there is a single support phase and a double support phase. The length of the step is
@@ -87,10 +97,14 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         # Compute motion on x-axis
         if k == 0:
             alpha = sub_time / t_ss
-            lf_path[mask, 0] = (1 - alpha) * lf_initial_pose[0] + alpha * steps_pose[k + 1][0]
+            lf_path[mask, 0] = (1 - alpha) * lf_initial_pose[0] + alpha * steps_pose[
+                k + 1
+            ][0]
         else:
             alpha = sub_time / t_ss
-            lf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[k + 1][0]
+            lf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[
+                k + 1
+            ][0]
 
         # # Add constant part till the next step
         t_begin = t_ds + k * (t_ss + t_ds) + t_ss
@@ -113,10 +127,14 @@ def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss,
         # Compute motion on x-axis
         if k == 1:
             alpha = sub_time / t_ss
-            rf_path[mask, 0] = (1 - alpha) * rf_initial_pose[0] + alpha * steps_pose[k + 1][0]
+            rf_path[mask, 0] = (1 - alpha) * rf_initial_pose[0] + alpha * steps_pose[
+                k + 1
+            ][0]
         else:
             alpha = sub_time / t_ss
-            rf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[k + 1][0]
+            rf_path[mask, 0] = (1 - alpha) * steps_pose[k - 1][0] + alpha * steps_pose[
+                k + 1
+            ][0]
 
         # # Add constant part till the next step
         t_begin = t_ds + k * (t_ss + t_ds) + t_ss

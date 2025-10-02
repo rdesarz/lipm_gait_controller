@@ -8,13 +8,16 @@ import pinocchio as pin
 from pinocchio.visualize import MeshcatVisualizer
 import meshcat.transformations as tf
 
-from lipm_walking_controller.controller import initialize_preview_control, compute_zmp_ref
+from lipm_walking_controller.controller import (
+    initialize_preview_control,
+    compute_zmp_ref,
+)
 from lipm_walking_controller.foot import compute_feet_path_and_poses, get_active_polygon
 from lipm_walking_controller.inverse_kinematic import qp_inverse_kinematics, QPParams
 from lipm_walking_controller.model import Talos
 
 if __name__ == "__main__":
-    # Parameters
+    # General parameters
     dt = 0.02  # Delta of time of the model simulation
     g = 9.81  # Gravity
     zc = 0.89  # Height of the COM
@@ -25,7 +28,8 @@ if __name__ == "__main__":
     n_preview_steps = int(round(t_preview / dt))
     Qe = 1.0  # Cost on the integral error of the ZMP reference
     Qx = np.zeros(
-        (3, 3))  # Cost on the state vector variation. Zero by default as we don't want to penalize strong variation.
+        (3, 3)
+    )  # Cost on the state vector variation. Zero by default as we don't want to penalize strong variation.
     R = 1e-6  # Cost on the input command u(t)
 
     # ZMP reference parameters
@@ -39,7 +43,9 @@ if __name__ == "__main__":
 
     enable_live_plot = False
 
-    A, B, C, Gd, Gx, Gi = initialize_preview_control(dt, zc, g, Qe, Qx, R, n_preview_steps)
+    A, B, C, Gd, Gx, Gi = initialize_preview_control(
+        dt, zc, g, Qe, Qx, R, n_preview_steps
+    )
 
     # Initialize the model position
     talos = Talos(path_to_model="~/projects")
@@ -60,19 +66,25 @@ if __name__ == "__main__":
     com_initial_pose = pin.centerOfMass(talos.model, talos.data, talos.q)
 
     # Build ZMP reference to track
-    t, lf_path, rf_path, steps_pose, phases = compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps,
-                                                                          t_ss, t_ds,
-                                                                          l_stride, dt, max_height_foot)
+    t, lf_path, rf_path, steps_pose, phases = compute_feet_path_and_poses(
+        rf_initial_pose,
+        lf_initial_pose,
+        n_steps,
+        t_ss,
+        t_ds,
+        l_stride,
+        dt,
+        max_height_foot,
+    )
 
     zmp_ref = compute_zmp_ref(t, com_initial_pose[0:2], steps_pose, t_ss, t_ds)
 
     T = len(t)
     u = np.zeros((T, 2))
 
-    zmp_padded = np.vstack([
-        zmp_ref,
-        np.repeat(zmp_ref[-1][None, :], n_preview_steps, axis=0)
-    ])
+    zmp_padded = np.vstack(
+        [zmp_ref, np.repeat(zmp_ref[-1][None, :], n_preview_steps, axis=0)]
+    )
 
     x0 = np.array([0.0, com_initial_pose[0], 0.0, 0.0], dtype=float)
     y0 = np.array([0.0, com_initial_pose[1], 0.0, 0.0], dtype=float)
@@ -92,8 +104,8 @@ if __name__ == "__main__":
     ax_live_plot.set_title("ZMP / CoM trajectories")
 
     # Plot ZMP reference vs COM on the x axis
-    axes[0, 1].plot(t, zmp_ref[:, 0], label='ZMP reference [x]')
-    com_ref_x_line, = axes[0, 1].plot([], [], label='COM [x]')
+    axes[0, 1].plot(t, zmp_ref[:, 0], label="ZMP reference [x]")
+    (com_ref_x_line,) = axes[0, 1].plot([], [], label="COM [x]")
     axes[0, 1].grid(True)
     axes[0, 1].legend()
     axes[0, 1].set_xlabel("t [s]")
@@ -101,31 +113,31 @@ if __name__ == "__main__":
     axes[0, 1].set_title("ZMP reference vs COM position on X-axis")
 
     # Plot ZMP reference vs COM on the y axis
-    axes[1, 1].plot(t, zmp_ref[:, 1], label='ZMP reference [y]')
-    com_ref_y_line, = axes[1, 1].plot([], [], label='COM [y]')
+    axes[1, 1].plot(t, zmp_ref[:, 1], label="ZMP reference [y]")
+    (com_ref_y_line,) = axes[1, 1].plot([], [], label="COM [y]")
     axes[1, 1].grid(True)
     axes[1, 1].legend()
     axes[1, 1].set_xlabel("time [s]")
     axes[1, 1].set_ylabel("y pos [m]")
     axes[1, 1].set_title("ZMP reference vs COM position on Y-axis")
 
-    axes[1, 0].plot(t, phases, marker='.', label='Phases [y]')
+    axes[1, 0].plot(t, phases, marker=".", label="Phases [y]")
     axes[1, 0].grid(True)
     axes[1, 0].legend()
     axes[1, 0].set_xlabel("time [s]")
     axes[1, 0].set_ylabel("Phases [-]")
     axes[1, 0].set_title("Phases ")
 
-    lf_x_traj_line, = axes[2, 0].plot(t, lf_path[:, 0], label='Left foot trajectory')
-    rf_x_traj_line, = axes[2, 0].plot(t, rf_path[:, 0], label='Right foot trajectory')
+    (lf_x_traj_line,) = axes[2, 0].plot(t, lf_path[:, 0], label="Left foot trajectory")
+    (rf_x_traj_line,) = axes[2, 0].plot(t, rf_path[:, 0], label="Right foot trajectory")
     axes[2, 0].grid(True)
     axes[2, 0].legend()
     axes[2, 0].set_xlabel("t [s]")
     axes[2, 0].set_ylabel("z pos [m]")
     axes[2, 0].set_title("Feet trajectories on x axis")
 
-    lf_z_traj_line, = axes[2, 1].plot(t, lf_path[:, 2], label='Left foot trajectory')
-    rf_z_traj_line, = axes[2, 1].plot(t, rf_path[:, 2], label='Right foot trajectory')
+    (lf_z_traj_line,) = axes[2, 1].plot(t, lf_path[:, 2], label="Left foot trajectory")
+    (rf_z_traj_line,) = axes[2, 1].plot(t, rf_path[:, 2], label="Right foot trajectory")
     axes[2, 1].grid(True)
     axes[2, 1].legend()
     axes[2, 1].set_xlabel("t [s]")
@@ -133,14 +145,22 @@ if __name__ == "__main__":
     axes[2, 1].set_title("Feet trajectories on z axis")
 
     info = ax_live_plot.text(
-        0.05, 0.92, "", transform=ax_live_plot.transAxes,
-        ha="left", va="top",
-        bbox=dict(boxstyle="round", fc="white", alpha=0.8)
+        0.05,
+        0.92,
+        "",
+        transform=ax_live_plot.transAxes,
+        ha="left",
+        va="top",
+        bbox=dict(boxstyle="round", fc="white", alpha=0.8),
     )
 
     # Static ZMP ref path for context
-    zmp_path_line, = ax_live_plot.plot(zmp_ref[:, 0], zmp_ref[:, 1], linestyle='-', label='ZMP ref', alpha=1.0)
-    com_path_line, = ax_live_plot.plot([], [], linestyle='-', label='CoM', color='red')
+    (zmp_path_line,) = ax_live_plot.plot(
+        zmp_ref[:, 0], zmp_ref[:, 1], linestyle="-", label="ZMP ref", alpha=1.0
+    )
+    (com_path_line,) = ax_live_plot.plot(
+        [], [], linestyle="-", label="CoM", color="red"
+    )
 
     active_poly_patch = None
 
@@ -165,7 +185,7 @@ if __name__ == "__main__":
         start = clock_gettime(0)
 
         # Get zmp ref horizon
-        zmp_ref_horizon = zmp_padded[k + 1:k + n_preview_steps]
+        zmp_ref_horizon = zmp_padded[k + 1 : k + n_preview_steps]
 
         # Compute uk
         u[k, 0] = -Gi * x[k, 0] - Gx @ x[k, 1:] + Gd.T @ zmp_ref_horizon[:, 0]
@@ -175,14 +195,24 @@ if __name__ == "__main__":
         x[k + 1, 0] = x[k, 0] + (C @ x[k, 1:] - zmp_ref[k, 0])
         y[k + 1, 0] = y[k, 0] + (C @ y[k, 1:] - zmp_ref[k, 1])
 
-        x[k + 1, 1:] = (A @ x[k, 1:] + B.ravel() * u[k, 0])
-        y[k + 1, 1:] = (A @ y[k, 1:] + B.ravel() * u[k, 1])
+        x[k + 1, 1:] = A @ x[k, 1:] + B.ravel() * u[k, 0]
+        y[k + 1, 1:] = A @ y[k, 1:] + B.ravel() * u[k, 1]
 
         com_target = np.array([x[k, 1], y[k, 1], lf_initial_pose[2] + zc])
 
-        params = QPParams(fixed_foot_frame=talos.right_foot_id, moving_foot_frame=talos.left_foot_id,
-                          torso_frame=talos.torso_id, model=talos.model,
-                          data=talos.data, w_torso=10.0, w_com=10.0, w_mf=10.0, w_ff=1000.0, mu=1e-5, dt=dt)
+        params = QPParams(
+            fixed_foot_frame=talos.right_foot_id,
+            moving_foot_frame=talos.left_foot_id,
+            torso_frame=talos.torso_id,
+            model=talos.model,
+            data=talos.data,
+            w_torso=10.0,
+            w_com=10.0,
+            w_mf=10.0,
+            w_ff=1000.0,
+            mu=1e-5,
+            dt=dt,
+        )
         if phases[k] < 0.0:
             params.fixed_foot_frame = talos.right_foot_id
             params.moving_foot_frame = talos.left_foot_id
@@ -204,7 +234,10 @@ if __name__ == "__main__":
         # Display the path of the CoM in the viewer
         com = pin.centerOfMass(talos.model, talos.data, talos.q)
         n = viz.viewer[f"world/com_traj/pt_{k:05d}"]
-        n.set_object(meshcat.geometry.Sphere(0.01), meshcat.geometry.MeshLambertMaterial(color=0xff0000))
+        n.set_object(
+            meshcat.geometry.Sphere(0.01),
+            meshcat.geometry.MeshLambertMaterial(color=0xFF0000),
+        )
         n.set_transform(tf.translation_matrix(com))
 
         if viz:
@@ -225,23 +258,25 @@ if __name__ == "__main__":
 
         if k % draw_every == 0 and enable_live_plot:
             com_path_line.set_data(com_arr[:, 0], com_arr[:, 1])
-            com_ref_x_line.set_data(t[0:k + 1], com_arr[:, 0])
-            com_ref_y_line.set_data(t[0:k + 1], com_arr[:, 1])
+            com_ref_x_line.set_data(t[0 : k + 1], com_arr[:, 0])
+            com_ref_y_line.set_data(t[0 : k + 1], com_arr[:, 1])
 
             poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
             if active_poly_patch is not None:
                 active_poly_patch.remove()
                 active_poly_patch = None
             px, py = poly.exterior.xy
-            active_poly_patch = ax_live_plot.fill(px, py, color='green', alpha=0.25, label='Support polygon')[0]
+            active_poly_patch = ax_live_plot.fill(
+                px, py, color="green", alpha=0.25, label="Support polygon"
+            )[0]
             ax_live_plot.legend()
             info.set_text(f"t={k * dt:.2f}s")
 
-            rf_z_traj_line.set_data(t[0:k + 1], rf_path[0:k + 1, 2])
-            lf_z_traj_line.set_data(t[0:k + 1], lf_path[0:k + 1, 2])
+            rf_z_traj_line.set_data(t[0 : k + 1], rf_path[0 : k + 1, 2])
+            lf_z_traj_line.set_data(t[0 : k + 1], lf_path[0 : k + 1, 2])
 
-            rf_x_traj_line.set_data(t[0:k + 1], rf_path[0:k + 1, 0])
-            lf_x_traj_line.set_data(t[0:k + 1], lf_path[0:k + 1, 0])
+            rf_x_traj_line.set_data(t[0 : k + 1], rf_path[0 : k + 1, 0])
+            lf_x_traj_line.set_data(t[0 : k + 1], lf_path[0 : k + 1, 0])
 
             plt.pause(0.001)
 

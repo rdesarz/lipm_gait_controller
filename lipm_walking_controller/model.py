@@ -25,11 +25,15 @@ class Talos:
         URDF = os.path.join(PKG_PARENT, "talos_data/urdf/talos_full.urdf")
 
         if not os.path.isfile(URDF):
-            print(f"URDF not found: {URDF}\nSet PKG_PARENT or clone talos_data.", file=sys.stderr)
+            print(
+                f"URDF not found: {URDF}\nSet PKG_PARENT or clone talos_data.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
-        full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(URDF, PKG_PARENT,
-                                                                             pin.JointModelFreeFlyer())
+        full_model, full_col_model, full_vis_model = pin.buildModelsFromUrdf(
+            URDF, PKG_PARENT, pin.JointModelFreeFlyer()
+        )
 
         q = pin.neutral(full_model)
 
@@ -43,8 +47,12 @@ class Talos:
         joints_to_lock = [i for i in range(14, 48)]
 
         # We build a reduced model by locking the specificied joints
-        self.model, self.geom = pin.buildReducedModel(full_model, full_col_model, joints_to_lock, q)
-        _, self.vis = pin.buildReducedModel(full_model, full_vis_model, joints_to_lock, q)
+        self.model, self.geom = pin.buildReducedModel(
+            full_model, full_col_model, joints_to_lock, q
+        )
+        _, self.vis = pin.buildReducedModel(
+            full_model, full_vis_model, joints_to_lock, q
+        )
         self.data = self.model.createData()
 
         self.left_foot_id = self.model.getFrameId("left_sole_link")

@@ -55,8 +55,11 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     # -------- Fixed-foot hard contact (6D) --------
     # Drive residual to zero at velocity level: J_ff * dq = -Kc * e_ff
     e_ff, J_ff = se3_task_error_and_jacobian(
-        params.model, params.data, q, params.fixed_foot_frame,
-        params.data.oMf[params.fixed_foot_frame].copy()  # hold current pose
+        params.model,
+        params.data,
+        q,
+        params.fixed_foot_frame,
+        params.data.oMf[params.fixed_foot_frame].copy(),  # hold current pose
     )
 
     # -------- Moving-foot soft pose task (6D) --------
@@ -67,10 +70,15 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     # -------- Torso roll/pitch soft task --------
     # Select angular part of e_torso and corresponding Jacobian rows
     e_torso6, J_torso6 = se3_task_error_and_jacobian(
-        params.model, params.data, q, params.torso_frame,
+        params.model,
+        params.data,
+        q,
+        params.torso_frame,
         # keep current yaw: project desired as same yaw in world
-        pin.SE3(params.data.oMf[params.torso_frame].rotation,  # overwritten right below
-                params.data.oMf[params.torso_frame].translation)
+        pin.SE3(
+            params.data.oMf[params.torso_frame].rotation,  # overwritten right below
+            params.data.oMf[params.torso_frame].translation,
+        ),
     )
     # Replace desired yaw by current yaw -> zero yaw error implicitly
     # Keep only roll,pitch components of angular error (indices 0,1) and rows (0,1) of J
@@ -82,14 +90,18 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     J_torso = S @ J_torso6
 
     # -------- Quadratic cost --------
-    H = ((Jcom.T @ (np.eye(3) * params.w_com) @ Jcom)
-         + (J_torso.T @ (np.eye(3) * params.w_torso) @ J_torso)
-         + (J_mf.T @ (np.eye(6) * params.w_mf) @ J_mf)
-         + np.eye(nv) * params.mu)
+    H = (
+        (Jcom.T @ (np.eye(3) * params.w_com) @ Jcom)
+        + (J_torso.T @ (np.eye(3) * params.w_torso) @ J_torso)
+        + (J_mf.T @ (np.eye(6) * params.w_mf) @ J_mf)
+        + np.eye(nv) * params.mu
+    )
 
-    g = ((- Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
-         - (J_torso.T @ (np.eye(3) * params.w_torso) @ e_torso)
-         - (J_mf.T @ (np.eye(6) * params.w_mf) @ e_mf))
+    g = (
+        (-Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
+        - (J_torso.T @ (np.eye(3) * params.w_torso) @ e_torso)
+        - (J_mf.T @ (np.eye(6) * params.w_mf) @ e_mf)
+    )
 
     # Use equality constraint for the position of the fixed foot
     A_eq = J_ff

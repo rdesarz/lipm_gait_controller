@@ -17,23 +17,17 @@ if __name__ == "__main__":
     g = 9.81
 
     # Discrete cart-table model with jerk input
-    A = np.array([[1.0, T, 0.5 * T * T],
-                  [0.0, 1.0, T],
-                  [0.0, 0.0, 1.0]], dtype=float)
-    B = np.array([[T ** 3 / 6.0],
-                  [T ** 2 / 2.0],
-                  [T]], dtype=float)
+    A = np.array([[1.0, T, 0.5 * T * T], [0.0, 1.0, T], [0.0, 0.0, 1.0]], dtype=float)
+    B = np.array([[T**3 / 6.0], [T**2 / 2.0], [T]], dtype=float)
     C = np.array([[1.0, 0.0, -zc / g]], dtype=float)  # 1x3
 
     # Augment with integral of ZMP error
-    A1 = np.block([[np.eye(1), C @ A],
-                   [np.zeros((3, 1)), A]])  # 4x4
+    A1 = np.block([[np.eye(1), C @ A], [np.zeros((3, 1)), A]])  # 4x4
     B1 = np.vstack((C @ B, B))  # 4x1
     I1 = np.vstack((np.array([1]), np.zeros((3, 1))))  # 4x1
     F = np.vstack((C @ A, A))
 
-    Q = np.block([[Qe, np.zeros((1, 3))],
-                  [np.zeros((3, 1)), Qx]])  # 4x4
+    Q = np.block([[Qe, np.zeros((1, 3))], [np.zeros((3, 1)), Qx]])  # 4x4
 
     # Compute K from Ricatti
     K = solve_discrete_are(A1, B1, Q, R)
@@ -59,7 +53,7 @@ if __name__ == "__main__":
 
     # Plot preview gains
     plt.figure()
-    plt.plot(np.arange(1, NL+1), Gd)
+    plt.plot(np.arange(1, NL + 1), Gd)
     plt.xlabel("Preview step j")
     plt.ylabel("Gp(j)")
     plt.title("Kajita Preview Gains Gp(j)")
