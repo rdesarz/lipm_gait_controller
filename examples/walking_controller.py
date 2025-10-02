@@ -1,73 +1,17 @@
 import math, os, sys
 from time import sleep, clock_gettime
-
 import meshcat
 import numpy as np
 from matplotlib import pyplot as plt
-from shapely import Polygon, Point, affinity, union
-from shapely.ops import nearest_points, transform
+from shapely import Polygon
 import pinocchio as pin
 from pinocchio.visualize import MeshcatVisualizer
 import meshcat.transformations as tf
 
 from lipm_walking_controller.controller import initialize_preview_control, compute_zmp_ref
-from lipm_walking_controller.foot_planner import compute_feet_path_and_poses
+from lipm_walking_controller.foot import compute_feet_path_and_poses
 from lipm_walking_controller.inverse_kinematic import qp_inverse_kinematics, QPParams
 from lipm_walking_controller.model import set_joint
-
-def compute_double_support_polygon(current_foot_pose, next_foot_pose, foot_shape):
-    curent_foot = affinity.translate(foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1])
-    next_foot = affinity.translate(foot_shape, xoff=next_foot_pose[0], yoff=next_foot_pose[1])
-
-    return union(curent_foot, next_foot).convex_hull
-
-
-def compute_single_support_polygon(current_foot_pose, foot_shape):
-    return affinity.translate(foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1])
-
-
-def plot_steps(axes, steps_pose, step_shape):
-    # Plot double support polygon
-    for current_step, next_step in zip(steps_pose[:-1], steps_pose[1:]):
-        support_polygon = compute_double_support_polygon(current_step, next_step, step_shape)
-
-        x, y = support_polygon.exterior.xy
-        axes.plot(x, y, color="blue")  # outline
-        axes.fill(x, y, color="lightblue", alpha=0.5)  # filled polygon
-
-    # Plot single support polygon
-    for current_step in steps_pose:
-        support_polygon = compute_single_support_polygon(current_step, step_shape)
-
-        x, y = support_polygon.exterior.xy
-        axes.plot(x, y, color="red")  # outline
-        axes.fill(x, y, color="red", alpha=0.5)  # filled polygon
-
-
-def get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape):
-    tk = k * dt
-    t_step = t_ss + t_ds
-    i = int(tk / t_step)
-    i = min(i, len(steps_pose) - 2)
-    t_in = tk - i * t_step
-    if t_in < t_ss:
-        return compute_single_support_polygon(steps_pose[i], foot_shape)
-    elif tk >= (len(steps_pose) - 1) * t_step:
-        return compute_single_support_polygon(steps_pose[-1], foot_shape)
-    else:
-        return compute_double_support_polygon(steps_pose[i], steps_pose[i + 1], foot_shape)
-
-
-def clamp_to_polygon(u_xy, poly: Polygon):
-    p = Point(u_xy[0], u_xy[1])
-    if poly.contains(p):
-        return u_xy
-
-    # nearest point on boundary
-    q = nearest_points(poly.exterior, p)[0]
-
-    return np.array([q.x, q.y])
-
 
 if __name__ == "__main__":
     # Parameters
@@ -153,11 +97,11 @@ if __name__ == "__main__":
     set_joint(q, red_model, "leg_left_4_joint", 1.0)
     set_joint(q, red_model, "leg_left_5_joint", -0.6)
 
-    set_joint(q, red_model,"leg_right_1_joint", 0.0)
-    set_joint(q, red_model,"leg_right_2_joint", 0.0)
-    set_joint(q, red_model,"leg_right_3_joint", -0.5)
-    set_joint(q, red_model,"leg_right_4_joint", 1.0)
-    set_joint(q, red_model,"leg_right_5_joint", -0.6)
+    set_joint(q, red_model, "leg_right_1_joint", 0.0)
+    set_joint(q, red_model, "leg_right_2_joint", 0.0)
+    set_joint(q, red_model, "leg_right_3_joint", -0.5)
+    set_joint(q, red_model, "leg_right_4_joint", 1.0)
+    set_joint(q, red_model, "leg_right_5_joint", -0.6)
 
     pin.forwardKinematics(red_model, red_data, q)
     pin.updateFramePlacements(red_model, red_data)

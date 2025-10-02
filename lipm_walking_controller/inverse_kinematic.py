@@ -74,20 +74,21 @@ def qp_inverse_kinematics(q, com_target, oMf_target, params: QPParams):
     )
     # Replace desired yaw by current yaw -> zero yaw error implicitly
     # Keep only roll,pitch components of angular error (indices 0,1) and rows (0,1) of J
-    S = np.zeros((2, 6))
+    S = np.zeros((3, 6))
     S[0, 3] = 1.0
     S[1, 4] = 1.0
+    S[2, 5] = 1.0
     e_torso = S @ e_torso6
     J_torso = S @ J_torso6
 
     # -------- Quadratic cost --------
     H = ((Jcom.T @ (np.eye(3) * params.w_com) @ Jcom)
-         + (J_torso.T @ (np.eye(2) * params.w_torso) @ J_torso)
+         + (J_torso.T @ (np.eye(3) * params.w_torso) @ J_torso)
          + (J_mf.T @ (np.eye(6) * params.w_mf) @ J_mf)
          + np.eye(nv) * params.mu)
 
     g = ((- Jcom.T @ (np.eye(3) * params.w_com) @ e_com)
-         - (J_torso.T @ (np.eye(2) * params.w_torso) @ e_torso)
+         - (J_torso.T @ (np.eye(3) * params.w_torso) @ e_torso)
          - (J_mf.T @ (np.eye(6) * params.w_mf) @ e_mf))
 
     # Use equality constraint for the position of the fixed foot

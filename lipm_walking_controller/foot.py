@@ -1,6 +1,43 @@
 import math
-
 import numpy as np
+from shapely import Polygon, Point, affinity, union
+from shapely.ops import nearest_points
+
+
+def clamp_to_polygon(u_xy, poly: Polygon):
+    p = Point(u_xy[0], u_xy[1])
+    if poly.contains(p):
+        return u_xy
+
+    # nearest point on boundary
+    q = nearest_points(poly.exterior, p)[0]
+
+    return np.array([q.x, q.y])
+
+
+def compute_double_support_polygon(current_foot_pose, next_foot_pose, foot_shape):
+    curent_foot = affinity.translate(foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1])
+    next_foot = affinity.translate(foot_shape, xoff=next_foot_pose[0], yoff=next_foot_pose[1])
+
+    return union(curent_foot, next_foot).convex_hull
+
+
+def compute_single_support_polygon(current_foot_pose, foot_shape):
+    return affinity.translate(foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1])
+
+
+def get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape):
+    tk = k * dt
+    t_step = t_ss + t_ds
+    i = int(tk / t_step)
+    i = min(i, len(steps_pose) - 2)
+    t_in = tk - i * t_step
+    if t_in < t_ss:
+        return compute_single_support_polygon(steps_pose[i], foot_shape)
+    elif tk >= (len(steps_pose) - 1) * t_step:
+        return compute_single_support_polygon(steps_pose[-1], foot_shape)
+    else:
+        return compute_double_support_polygon(steps_pose[i], steps_pose[i + 1], foot_shape)
 
 
 def compute_feet_path_and_poses(rf_initial_pose, lf_initial_pose, n_steps, t_ss, t_ds, l_stride, dt, max_height_foot):
