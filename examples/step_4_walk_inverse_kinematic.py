@@ -49,6 +49,7 @@ if __name__ == "__main__":
 
     # Initialize the model position
     talos = Talos(path_to_model="~/projects")
+    q = talos.set_and_get_default_pose()
 
     # Initialize visualizer
     viz = MeshcatVisualizer(talos.model, talos.geom, talos.vis)
@@ -63,7 +64,7 @@ if __name__ == "__main__":
 
     lf_initial_pose = oMf_lf0.translation
     rf_initial_pose = oMf_rf0.translation
-    com_initial_pose = pin.centerOfMass(talos.model, talos.data, talos.q)
+    com_initial_pose = pin.centerOfMass(talos.model, talos.data, q)
 
     # Build ZMP reference to track
     t, lf_path, rf_path, steps_pose, phases = compute_feet_path_and_poses(
@@ -140,21 +141,21 @@ if __name__ == "__main__":
             params.moving_foot_frame = talos.left_foot_id
 
             oMf_lf = pin.SE3(oMf_lf0.rotation, lf_path[k])
-            q_new, dq = qp_inverse_kinematics(talos.q, com_target, oMf_lf, params)
-            talos.q = q_new
+            q_new, dq = qp_inverse_kinematics(q, com_target, oMf_lf, params)
+            q = q_new
         else:
             params.fixed_foot_frame = talos.left_foot_id
             params.moving_foot_frame = talos.right_foot_id
 
             oMf_rf = pin.SE3(oMf_rf0.rotation, rf_path[k])
-            q_new, dq = qp_inverse_kinematics(talos.q, com_target, oMf_rf, params)
-            talos.q = q_new
+            q_new, dq = qp_inverse_kinematics(q, com_target, oMf_rf, params)
+            q = q_new
 
-        pin.forwardKinematics(talos.model, talos.data, talos.q)
+        pin.forwardKinematics(talos.model, talos.data, q)
         pin.updateFramePlacements(talos.model, talos.data)
 
         # Display the path of the CoM in the viewer
-        com = pin.centerOfMass(talos.model, talos.data, talos.q)
+        com = pin.centerOfMass(talos.model, talos.data, q)
         n = viz.viewer[f"world/com_traj/pt_{k:05d}"]
         n.set_object(
             meshcat.geometry.Sphere(0.01),
@@ -163,7 +164,7 @@ if __name__ == "__main__":
         n.set_transform(tf.translation_matrix(com))
 
         if viz:
-            viz.display(talos.q)
+            viz.display(q)
 
         # Compute the remaining time to render in real time the visualization
         stop = clock_gettime(0)

@@ -59,16 +59,18 @@ class Talos:
         self.right_foot_id = self.model.getFrameId("right_sole_link")
         self.torso_id = self.model.getFrameId("torso_1_link")
 
+    def set_and_get_default_pose(self):
         # Initialize reduced model
-        self.q = pin.neutral(self.model)
+        q = pin.neutral(self.model)
 
-        # Initialize legs position
+        # Initialize left leg position
         set_joint(q, self.model, "leg_left_1_joint", 0.0)
         set_joint(q, self.model, "leg_left_2_joint", 0.0)
         set_joint(q, self.model, "leg_left_3_joint", -0.5)
         set_joint(q, self.model, "leg_left_4_joint", 1.0)
         set_joint(q, self.model, "leg_left_5_joint", -0.6)
 
+        # Initialize right leg position
         set_joint(q, self.model, "leg_right_1_joint", 0.0)
         set_joint(q, self.model, "leg_right_2_joint", 0.0)
         set_joint(q, self.model, "leg_right_3_joint", -0.5)
@@ -76,5 +78,7 @@ class Talos:
         set_joint(q, self.model, "leg_right_5_joint", -0.6)
 
         # Update position of the model and the data
-        pin.forwardKinematics(self.model, self.data, self.q)
+        pin.forwardKinematics(self.model, self.data, q)
         pin.updateFramePlacements(self.model, self.data)
+
+        return q
