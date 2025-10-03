@@ -20,7 +20,8 @@ if __name__ == "__main__":
     Qe = 1.0  # Cost on the integral error of the ZMP reference
     Qx = np.zeros(
         (3, 3)
-    )  # Cost on the state vector variation. Zero by default as we don't want to penalize strong variation.
+    )  # Cost on the state vector variation. Zero by default as
+    # we don't want to penalize strong variation.
     R = 1e-6  # Cost on the input command u(t)
 
     # ZMP reference parameters

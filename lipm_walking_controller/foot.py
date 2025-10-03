@@ -26,8 +26,8 @@ def compute_double_support_polygon(
     foot_pose_a, foot_pose_b, foot_shape: shapely.Polygon
 ):
     """
-    Return support polygon in double support phase. The polygon is the smallest convex hull that includes both feet
-    polygon
+    Return support polygon in double support phase. The polygon is the smallest convex hull
+    that includes both feet polygon
     :param foot_pose_a: position of the first foot
     :param foot_pose_b: position of the second foot
     :param foot_shape: shape of each foot. We expect both feet to have the same shape.
@@ -84,10 +84,11 @@ def compute_feet_path_and_poses(
 ):
     # The sequence is the following:
     # Start with a double support phase to switch CoM on right foot
-    # Then n_steps, for each step there is a single support phase and a double support phase. The length of the step is
-    # given by l_stride.
-    # At the last step, we add a single support step to join both feet at the same level and a double support step to
-    # place the CoM in the middle of the feet
+    # Then n_steps, for each step there is a single support phase and a
+    # double support phase. The length of the step is given by l_stride.
+    # At the last step, we add a single support step to join both feet at
+    # the same level and a double support step to  place the CoM in the
+    # middle of the feet
 
     total_time = t_ds + (n_steps + 1) * (t_ss + t_ds)
     N = int(total_time / dt)

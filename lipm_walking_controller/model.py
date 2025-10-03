@@ -44,7 +44,7 @@ class Talos:
         set_joint(q, full_model, "arm_left_4_joint", -1.2)
 
         # We lock joints of the upper body since there are not meant to move with LIPM model
-        joints_to_lock = [i for i in range(14, 48)]
+        joints_to_lock = list(range(14, 48))
 
         # We build a reduced model by locking the specificied joints
         self.model, self.geom = pin.buildReducedModel(
