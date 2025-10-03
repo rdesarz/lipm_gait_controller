@@ -51,15 +51,27 @@ def compute_single_support_polygon(foot_pose, foot_shape: shapely.Polygon):
     return affinity.translate(foot_shape, xoff=foot_pose[0], yoff=foot_pose[1])
 
 
-def get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape: shapely.Polygon):
-    tk = k * dt
+def get_active_polygon(
+    t: float, steps_pose, t_ss: float, t_ds: float, foot_shape: shapely.Polygon
+):
+    """
+    Return the shape of the polygon
+    :param k:
+    :param dt:
+    :param steps_pose:
+    :param t_ss:
+    :param t_ds:
+    :param foot_shape:
+    :return:
+    """
     t_step = t_ss + t_ds
-    i = int(tk / t_step)
+    i = int(t / t_step)
     i = min(i, len(steps_pose) - 2)
-    t_in = tk - i * t_step
+    t_in = t - i * t_step
+
     if t_in < t_ss:
         return compute_single_support_polygon(steps_pose[i], foot_shape)
-    elif tk >= (len(steps_pose) - 1) * t_step:
+    elif t >= (len(steps_pose) - 1) * t_step:
         return compute_single_support_polygon(steps_pose[-1], foot_shape)
     else:
         return compute_double_support_polygon(

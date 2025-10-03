@@ -183,7 +183,7 @@ if __name__ == "__main__":
             com_ref_x_line.set_data(t[0 : k + 1], com_arr[:, 0])
             com_ref_y_line.set_data(t[0 : k + 1], com_arr[:, 1])
 
-            poly = get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape)
+            poly = get_active_polygon(k * dt, steps_pose, t_ss, t_ds, foot_shape)
             if active_poly_patch is not None:
                 active_poly_patch.remove()
                 active_poly_patch = None
