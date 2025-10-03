@@ -1,13 +1,20 @@
 import math
 import numpy as np
+import shapely
 from shapely import Polygon, Point, affinity, union
 from shapely.ops import nearest_points
 
 
-def clamp_to_polygon(u_xy, poly: Polygon):
-    p = Point(u_xy[0], u_xy[1])
+def clamp_to_polygon(pnt: np.ndarray, poly: Polygon):
+    """
+    Clamp the point pnt inside the specified polygon by using the closest position from it.
+    :param pnt: point to clamp
+    :param poly: polygon
+    :return: clamped point
+    """
+    p = Point(pnt[0], pnt[1])
     if poly.contains(p):
-        return u_xy
+        return pnt
 
     # nearest point on boundary
     q = nearest_points(poly.exterior, p)[0]
@@ -15,24 +22,36 @@ def clamp_to_polygon(u_xy, poly: Polygon):
     return np.array([q.x, q.y])
 
 
-def compute_double_support_polygon(current_foot_pose, next_foot_pose, foot_shape):
+def compute_double_support_polygon(
+    foot_pose_a, foot_pose_b, foot_shape: shapely.Polygon
+):
+    """
+    Return support polygon in double support phase. The polygon is the smallest convex hull that includes both feet
+    polygon
+    :param foot_pose_a: position of the first foot
+    :param foot_pose_b: position of the second foot
+    :param foot_shape: shape of each foot. We expect both feet to have the same shape.
+    :return: support polygon in double support phase
+    """
     curent_foot = affinity.translate(
-        foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1]
+        foot_shape, xoff=foot_pose_a[0], yoff=foot_pose_a[1]
     )
-    next_foot = affinity.translate(
-        foot_shape, xoff=next_foot_pose[0], yoff=next_foot_pose[1]
-    )
+    next_foot = affinity.translate(foot_shape, xoff=foot_pose_b[0], yoff=foot_pose_b[1])
 
     return union(curent_foot, next_foot).convex_hull
 
 
-def compute_single_support_polygon(current_foot_pose, foot_shape):
-    return affinity.translate(
-        foot_shape, xoff=current_foot_pose[0], yoff=current_foot_pose[1]
-    )
+def compute_single_support_polygon(foot_pose, foot_shape: shapely.Polygon):
+    """
+    Return support polygon in single support phase.
+    :param foot_pose: position of the foot
+    :param foot_shape: shape of the foot.
+    :return: support polygon in single support phase
+    """
+    return affinity.translate(foot_shape, xoff=foot_pose[0], yoff=foot_pose[1])
 
 
-def get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape):
+def get_active_polygon(k, dt, steps_pose, t_ss, t_ds, foot_shape: shapely.Polygon):
     tk = k * dt
     t_step = t_ss + t_ds
     i = int(tk / t_step)
