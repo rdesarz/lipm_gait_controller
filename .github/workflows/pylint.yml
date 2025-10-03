@@ -21,7 +21,7 @@ jobs:
         run: python -m pip install -U pip
 
       - name: Install project + dev extras
-        run: pip install -r ".[dev]"
+        run: pip install ".[dev]"
 
       - name: Type check (mypy)
         run: mypy .
