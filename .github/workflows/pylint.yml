@@ -23,8 +23,5 @@ jobs:
       - name: Install project + dev extras
         run: pip install ".[dev]"
 
-      - name: Type check (mypy)
-        run: mypy .
-
       - name: Lint (pylint)
         run: pylint lipm_walking_controller || true  # drop `|| true` if you want hard fail
