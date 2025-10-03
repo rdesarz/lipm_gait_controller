@@ -5,7 +5,7 @@ description = "LIPM preview control, footstep and IK/QP building blocks for bipe
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Romain Desarzens" }]
-license = { file = "LICENSE" }
+license-files = ["LICENSE"]
 keywords = ["biped", "LIPM", "ZMP", "walking", "pinocchio", "QP", "robotics"]
 classifiers = [
   "Programming Language :: Python :: 3",
