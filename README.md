@@ -1,7 +1,5 @@
 # LIPM Walking Controller
 
-![pylint](https://img.shields.io/badge/PyLint-8.96-yellow?logo=python&logoColor=white)
-
 An implementation of the **Linear Inverted Pendulum Model (LIPM)** walking pattern generator using **preview control of 
 the Zero-Moment Point (ZMP)**, following _Kajita et al. “Biped Walking Pattern Generation by Using Preview Control of Zero-Moment Point.”_
 
