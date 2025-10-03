@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
 [project]
 name = "lipm-walking-controller"
 version = "0.1.0"
@@ -46,8 +50,6 @@ docs = [
   "mkdocstrings-python>=1.10",
 ]
 
-# ---------------- Lint/format/test config ----------------
-
 [tool.black]
 line-length = 100
 target-version = ["py310"]
@@ -60,8 +62,6 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 disallow_any_generics = true
 plugins = []
-# Third-party libs without full stubs
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
