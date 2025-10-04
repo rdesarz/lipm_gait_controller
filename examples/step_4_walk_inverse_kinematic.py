@@ -89,6 +89,20 @@ if __name__ == "__main__":
     sleep(0.5)
 
     # Simulate
+    params = QPParams(
+        fixed_foot_frame=talos.right_foot_id,
+        moving_foot_frame=talos.left_foot_id,
+        torso_frame=talos.torso_id,
+        model=talos.model,
+        data=talos.data,
+        w_torso=10.0,
+        w_com=10.0,
+        w_mf=10.0,
+        w_ff=1000.0,
+        mu=1e-5,
+        dt=dt,
+    )
+
     for k in range(T):
         start = clock_gettime(0)
 
@@ -108,19 +122,7 @@ if __name__ == "__main__":
 
         com_target = np.array([x[k, 1], y[k, 1], lf_initial_pose[2] + zc])
 
-        params = QPParams(
-            fixed_foot_frame=talos.right_foot_id,
-            moving_foot_frame=talos.left_foot_id,
-            torso_frame=talos.torso_id,
-            model=talos.model,
-            data=talos.data,
-            w_torso=10.0,
-            w_com=10.0,
-            w_mf=10.0,
-            w_ff=1000.0,
-            mu=1e-5,
-            dt=dt,
-        )
+        # Alternate between feet
         if phases[k] < 0.0:
             params.fixed_foot_frame = talos.right_foot_id
             params.moving_foot_frame = talos.left_foot_id
@@ -148,6 +150,7 @@ if __name__ == "__main__":
         )
         n.set_transform(tf.translation_matrix(com))
 
+        # Update the model visualization
         if viz:
             viz.display(q)
 

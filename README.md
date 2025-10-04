@@ -7,7 +7,7 @@ the Zero-Moment Point (ZMP)**, following _Kajita et al. “Biped Walking Pattern
 
 The figure below shows an example of the simulated trajectory of the Center of Mass versus the ZMP reference
 
-![](img/traj.gif)
+![](img/preview_control.gif)
 
 
 ---
@@ -34,25 +34,43 @@ The implementation is kept minimal and educational, with a focus on clarity and 
 
 ---
 
-## Quickstart
+## Examples
 
 ### ZMP preview control
 
 ```bash
 git clone https://github.com/rdesarz/lipm-walking-controller.git
 cd lipm-walking-controller
-pip install -r requirements.txt
+pip install ".[dev]"
 python examples/step_2_lipm_preview_control.py
 ```
 
-### Inverse kinematics
+### Feet motion
+
+In this example, we generate a trajectory for the both feet of the robot. We expect the robot to move forward. The 
+trajectory of the foot is a linear on x-axis and a sinusoid on the z-axis.
 
 ```bash
 git clone https://github.com/rdesarz/lipm-walking-controller.git
 cd lipm-walking-controller
-pip install -r requirements.txt
+pip install ".[dev]"
+python examples/step_3_feet_motion.py
+```
+
+![](img/foot_motion.png)
+
+### Walking controller
+
+This example computes the inverse kinematic of the robot in order to track the computed COM reference trajectory as well
+as the trajectory of the feet. We obtain the cinematic of a walking robot. However it still lacks a physical engine to 
+check whether the controller is actually able to balance itself
+
+```bash
+git clone https://github.com/rdesarz/lipm-walking-controller.git
+cd lipm-walking-controller
+pip install ".[dev]"
 git clone https://github.com/stack-of-tasks/talos-data.git talos_data
-python examples/step_3_squat_inverse_kinematics.py
+python examples/step_4_walk_inverse_kinematic.py
 ```
 
 ---
@@ -61,6 +79,6 @@ python examples/step_3_squat_inverse_kinematics.py
 
 The aim of this project is to generate walking commands for a humanoid robot in simulation. Upcoming work:
 
-- **Footstep generation**: automatic creation of step sequences instead of hard-coded references.  
-- **Inverse kinematics integration**: map CoM trajectories to joint angles using Pinocchio.  
-- **Disturbance handling**: simulate pushes and evaluate preview controller robustness.  
+- **Physics simulation**: run the controller in Pybullet and evaluate the performance.   
+- **Disturbance handling**: simulate pushes and evaluate preview controller robustness. 
+- **Foot step planner**: add a foot step planner in order to move in any direction
